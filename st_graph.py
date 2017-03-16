@@ -55,11 +55,24 @@ class ST_GRAPH():
                     else:
                         self.nodes[sequence][pedID].addPosition(pos, framenum)
 
-                # NOTE:
-                # Adding edges between all pairs of pedestrians.
+                        # Add Temporal edge between the node at current time-step
+                        # and the node at previous time-step
+                        edge_id = (pedID, pedID)
+                        pos_edge = (self.nodes[sequence][pedID].getPosition(framenum-1), pos)
+                        if edge_id not in self.edges[sequence]:
+                            edge_type = 'H-H/T'
+                            edge_pos_list = {}
+                            # ASSUMPTION: Adding temporal edge at the later time-step
+                            edge_pos_list[framenum] = pos_edge
+                            self.edges[sequence][edge_id] = ST_EDGE(edge_type, edge_id, edge_pos_list)
+                        else:
+                            self.edges[sequence][edge_id].addPosition(pos_edge, framenum)
+
+                # ASSUMPTION:
+                # Adding spatial edges between all pairs of pedestrians.
                 # TODO:
                 # Can be pruned by considering pedestrians who are close to each other
-                # Add edges
+                # Add spatial edges
                 for ped_in in range(frame.shape[0]):
                     for ped_out in range(ped_in+1, frame.shape[0]):
                         pedID_in = frame[ped_in, 0]
@@ -71,7 +84,7 @@ class ST_GRAPH():
                         # ASSUMPTION:
                         # Assuming that pedIDs always are in increasing order in the input batch data
                         if edge_id not in self.edges[sequence]:
-                            edge_type = 'H-H'
+                            edge_type = 'H-H/S'
                             edge_pos_list = {}
                             edge_pos_list[framenum] = pos
                             self.edges[sequence][edge_id] = ST_EDGE(edge_type, edge_id, edge_pos_list)
