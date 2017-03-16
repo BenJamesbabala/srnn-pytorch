@@ -38,6 +38,9 @@ This code/implementation is available for research purposes. If you are using th
 - Additional inputs involve hidden states of the human node RNN and the obstacle node RNN involved with the edge
 - No output (only the hidden state is used)
 
+## Things to be resolved
+- Do we need temporal edge RNNs? Won't the node RNNs capture the temporal aspect of the nodes? 
+
 **Author** : Anirudh Vemula
 
 **Affiliation** : Robotics Institute, Carnegie Mellon University
