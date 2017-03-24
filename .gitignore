@@ -15,3 +15,4 @@ save_lstm
 plot
 backup
 debug.py
+*.pdf
