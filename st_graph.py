@@ -5,7 +5,8 @@ Takes a batch of sequences and generates corresponding ST-graphs
 Author : Anirudh Vemula
 Date : 15th March 2017
 '''
-
+import numpy as np
+from utils import getVector
 
 class ST_GRAPH():
 
@@ -26,8 +27,7 @@ class ST_GRAPH():
         '''
         Main function that constructs the ST graph from the batch data
         params:
-        source_batch : List of lists of numpy arrays. Each numpy array corresponds to
-        a frame in the sequence.
+        source_batch : List of lists of numpy arrays. Each numpy array corresponds to a frame in the sequence.
         '''
         for sequence in range(self.batch_size):
             # source_seq is a list of numpy arrays
@@ -112,6 +112,52 @@ class ST_GRAPH():
             for edge in edges.values():
                 edge.printEdge()
                 print '--------------'
+
+    def getSequence(self, ind):
+        '''
+        Gets the data related to the ind-th sequence
+        '''
+        nodes = self.nodes[ind]
+        edges = self.edges[ind]
+
+        numNodes = len(nodes.keys())
+        list_of_nodes = {}
+
+        retNodes = np.zeros((self.seq_length, numNodes, 3))
+        retEdges = np.zeros((self.seq_length, numNodes, numNodes, 2))  # Diagonal contains temporal edges
+        retNodePresent = [[] for c in xrange(self.seq_length)]
+        retEdgePresent = [[] for c in xrange(self.seq_length)]
+
+        for i, ped in enumerate(nodes.keys()):
+            list_of_nodes[ped] = i
+            pos_list = nodes[ped].node_pos_list
+            for framenum in range(self.seq_length):
+                if framenum in pos_list:
+                    retNodePresent[framenum].append(i)
+                    retNodes[framenum, i, 0] = ped
+                    retNodes[framenum, i, 1:3] = list(pos_list[framenum])
+
+        for ped, ped_other in edges.keys():
+            i, j = list_of_nodes[ped], list_of_nodes[ped_other]
+            edge = edges[(ped, ped_other)]
+
+            if ped == ped_other:
+                # Temporal edge
+                for framenum in range(self.seq_length):
+                    if framenum in edge.edge_pos_list:
+                        retEdgePresent[framenum].append((i, j))
+                        retEdges[framenum, i, j, :] = getVector(edge.edge_pos_list[framenum])
+            else:
+                # Spatial edge
+                for framenum in range(self.seq_length):
+                    if framenum in edge.edge_pos_list:
+                        retEdgePresent[framenum].append((i, j))
+                        retEdgePresent[framenum].append((j, i))
+                        # the position returned is a tuple of tuples
+                        retEdges[framenum, i, j, :] = getVector(edge.edge_pos_list[framenum])
+                        retEdges[framenum, j, i, :] = -retEdges[framenum, i, j, :]
+
+        return retNodes, retEdges, retNodePresent, retEdgePresent
 
 
 class ST_NODE():
