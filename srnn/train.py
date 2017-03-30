@@ -9,10 +9,15 @@ Date : 29th March 2017
 import argparse
 import os
 import pickle
+import time
+
+import torch
+from torch.autograd import Variable
 
 from utils import DataLoader
 from st_graph import ST_GRAPH
 from model import SRNN
+from criterion import Gaussian2DLikelihood
 
 
 def main():
@@ -75,17 +80,83 @@ def main():
 
 
 def train(args):
-    datasets = range(4)
+    datasets = range(1)
     # Remove the leave out dataset from the datasets
-    datasets.remove(args.leaveDataset)
+    # datasets.remove(args.leaveDataset)
 
     # Construct the DataLoader object
     dataloader = DataLoader(args.batch_size, args.seq_length, datasets, forcePreProcess=True)
 
+    # Construct the ST-graph object
+    stgraph = ST_GRAPH(args.batch_size, args.seq_length)
+    stgraph_target = ST_GRAPH(args.batch_size, args.seq_length)
+
     with open(os.path.join('save', 'config.pkl'), 'wb') as f:
         pickle.dump(args, f)
 
-    srnn = SRNN(args)
-    srnn.cuda()
+    net = SRNN(args)
+    net.cuda()
 
-    
+    optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate)
+
+    # Training
+    for epoch in range(args.num_epochs):
+
+        dataloader.reset_batch_pointer()
+
+        for batch in range(dataloader.num_batches):
+            start = time.time()
+
+            x, y, d = dataloader.next_batch()
+
+            # Read the st graph from data
+            stgraph.readGraph(x)
+            stgraph_target.readGraph(y)
+
+            # Loss for this batch
+            loss_batch = 0
+
+            for sequence in range(dataloader.batch_size):
+
+                nodes, edges, nodesPresent, edgesPresent = stgraph.getSequence(sequence)
+                nodes_target, _, nodesPresent_target, _ = stgraph_target.getSequence(sequence)
+
+                # Convert to cuda variables
+                nodes = Variable(torch.from_numpy(nodes)).cuda()
+                edges = Variable(torch.from_numpy(edges)).cuda()
+                nodes_target = Variable(torch.from_numpy(nodes_target)).cuda()
+
+                # Zero out the gradients
+                net.zero_grad()
+
+                # Forward prop
+                outputs = net(nodes, edges, nodesPresent, edgesPresent)
+
+                # Compute loss
+                loss = Gaussian2DLikelihood(outputs, nodes_target, nodesPresent_target)
+                loss_batch += loss
+
+                # Compute gradients
+                loss.backward()
+
+                # Clip gradients
+                torch.nn.utils.clip_grad_norm(net.parameters(), args.grad_clip)
+
+                # Update parameters
+                optimizer.step()
+
+            stgraph.reset()
+            stgraph_target.reset()
+            end = time.time()
+            loss_batch = loss_batch / dataloader.batch_size
+
+            print(
+                '{}/{} (epoch {}), train_loss = {:.3f}, time/batch = {:.3f}'.format(epoch * dataloader.num_batches + batch,
+                                                                                    args.num_epochs * dataloader.num_batches,
+                                                                                    epoch,
+                                                                                    loss_batch, end - start))
+
+            # TODO Save the model
+
+if __name__ == '__main__':
+    main()

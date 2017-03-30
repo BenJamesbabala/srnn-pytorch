@@ -23,6 +23,10 @@ class ST_GRAPH():
         self.nodes = [{} for i in range(batch_size)]
         self.edges = [{} for i in range(batch_size)]
 
+    def reset(self):
+        self.nodes = [{} for i in range(self.batch_size)]
+        self.edges = [{} for i in range(self.batch_size)]
+
     def readGraph(self, source_batch):
         '''
         Main function that constructs the ST graph from the batch data
@@ -123,7 +127,7 @@ class ST_GRAPH():
         numNodes = len(nodes.keys())
         list_of_nodes = {}
 
-        retNodes = np.zeros((self.seq_length, numNodes, 3))
+        retNodes = np.zeros((self.seq_length, numNodes, 2))
         retEdges = np.zeros((self.seq_length, numNodes, numNodes, 2))  # Diagonal contains temporal edges
         retNodePresent = [[] for c in xrange(self.seq_length)]
         retEdgePresent = [[] for c in xrange(self.seq_length)]
@@ -134,8 +138,7 @@ class ST_GRAPH():
             for framenum in range(self.seq_length):
                 if framenum in pos_list:
                     retNodePresent[framenum].append(i)
-                    retNodes[framenum, i, 0] = ped
-                    retNodes[framenum, i, 1:3] = list(pos_list[framenum])
+                    retNodes[framenum, i, :] = list(pos_list[framenum])
 
         for ped, ped_other in edges.keys():
             i, j = list_of_nodes[ped], list_of_nodes[ped_other]

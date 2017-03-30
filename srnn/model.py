@@ -147,9 +147,8 @@ class SRNN(nn.Module):
         '''
         Parameters
 
-        nodes : A tensor of shape seq_length x numNodes x 3
-        Each row contains (pedID, x, y)
-        If pedID is zero, then the corresponding ped is not present in that frame
+        nodes : A tensor of shape seq_length x numNodes x 2
+        Each row contains (x, y)
 
         edges : A tensor of shape seq_length x numNodes x numNodes x 2
         Each row contains the vector representing the edge
@@ -206,7 +205,7 @@ class SRNN(nn.Module):
                 h_other = torch.cat((h_temporal, h_spatial), dimension=0)
 
                 outputs[framenum, nodeID, :],
-                hidden_states_node_RNNs[nodeID, :] = self.humanNodeRNN(edges[framenum, nodeID, 1:3],
+                hidden_states_node_RNNs[nodeID, :] = self.humanNodeRNN(nodes[framenum, nodeID, :],
                                                                        h_other, hidden_states_node_RNNs[nodeID, :])
 
         return outputs
