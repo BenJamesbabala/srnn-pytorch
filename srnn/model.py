@@ -131,8 +131,7 @@ class SRNN(nn.Module):
         self.seq_length = args.seq_length
         self.human_node_rnn_size = args.human_node_rnn_size
         self.human_human_edge_rnn_size = args.human_human_edge_rnn_size
-        self.output_size = args.output_size
-        self.input_size = args.input_size
+        self.output_size = args.human_node_output_size
 
         # Initialize the Node and Edge RNNs
         self.humanNodeRNN = HumanNodeRNN(args, infer)
@@ -170,7 +169,7 @@ class SRNN(nn.Module):
         hidden_states_edge_RNNs = Variable(torch.zeros(numNodes, numNodes, self.human_human_edge_rnn_size)).cuda()
 
         # Initialize output array
-        outputs = torch.zeros(self.seq_length, numNodes, self.output_size)
+        outputs = Variable(torch.zeros(self.seq_length, numNodes, self.output_size)).cuda()
 
         for framenum in range(self.seq_length):
 
