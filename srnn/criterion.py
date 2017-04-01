@@ -49,6 +49,7 @@ def Gaussian2DLikelihood(outputs, targets, nodesPresent):
     result = -torch.log(torch.clamp(result, min=epsilon))
 
     loss = 0
+    counter = 0
 
     for framenum in range(outputs.size()[0]):
         nodeIDs = nodesPresent[framenum]
@@ -56,5 +57,9 @@ def Gaussian2DLikelihood(outputs, targets, nodesPresent):
         for nodeID in nodeIDs:
 
             loss = loss + result[framenum, nodeID]
+            counter = counter + 1
 
-    return loss
+    if counter != 0:
+        return loss / counter
+    else:
+        return loss
