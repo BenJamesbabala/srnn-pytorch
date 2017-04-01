@@ -117,14 +117,14 @@ def train(args):
             loss_batch = 0
 
             for sequence in range(dataloader.batch_size):
-
+                print sequence
                 nodes, edges, nodesPresent, edgesPresent = stgraph.getSequence(sequence)
                 nodes_target, _, nodesPresent_target, _ = stgraph_target.getSequence(sequence)
 
                 # Convert to cuda variables
-                nodes = Variable(torch.from_numpy(nodes)).cuda()
-                edges = Variable(torch.from_numpy(edges)).cuda()
-                nodes_target = Variable(torch.from_numpy(nodes_target)).cuda()
+                nodes = Variable(torch.from_numpy(nodes).float()).cuda()
+                edges = Variable(torch.from_numpy(edges).float()).cuda()
+                nodes_target = Variable(torch.from_numpy(nodes_target).float()).cuda()
 
                 # Zero out the gradients
                 net.zero_grad()

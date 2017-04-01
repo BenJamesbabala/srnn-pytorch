@@ -20,8 +20,11 @@ def Gaussian2DLikelihood(outputs, targets, nodesPresent):
     nodesPresent : A list of lists, of size seq_length. Each list contains the nodeIDs that are present in the frame
     '''
 
+    print targets.size()
+    print outputs.size()
+    
     # Extract mean, std devs and correlation
-    mux, muy, sx, sy, corr = outputs[:, :, 0], outputs[:, :, 1], outputs[:, :, 2], outputs[:, :, 3], outputs[:, :, 4]
+    mux, muy, sx, sy, corr = outputs[:, :, 0, 0], outputs[:, :, 0, 1], outputs[:, :, 0, 2], outputs[:, :, 0, 3], outputs[:, :, 0, 4]
 
     sx = torch.exp(sx)
     sy = torch.exp(sy)

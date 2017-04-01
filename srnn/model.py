@@ -11,7 +11,7 @@ from torch.autograd import Variable
 import torch
 
 
-class HumanNodeRNN(nn.module):
+class HumanNodeRNN(nn.Module):
     '''
     Class representing human Node RNNs in the st-graph
     '''
@@ -58,7 +58,7 @@ class HumanNodeRNN(nn.module):
         encoded_hidden = self.hidden_encoder_relu(encoded_hidden)
 
         # Concat both the embeddings
-        concat_encoded = torch.cat((encoded_input, encoded_hidden), dimension=0)
+        concat_encoded = torch.cat((encoded_input, encoded_hidden), 1)
 
         # One-step of GRU
         h_new = self.cell(concat_encoded, h)
@@ -164,29 +164,26 @@ class SRNN(nn.Module):
         numNodes = nodes.size()[1]
 
         # Initialize hidden states of node RNNs and edge RNNs
-        hidden_states_node_RNNs = Variable(torch.zeros(numNodes, self.human_node_rnn_size)).cuda()
-        hidden_states_edge_RNNs = Variable(torch.zeros(numNodes, numNodes, self.human_human_edge_rnn_size)).cuda()
+        hidden_states_node_RNNs = Variable(torch.zeros(numNodes, 1, self.human_node_rnn_size)).cuda()
+        hidden_states_edge_RNNs = Variable(torch.zeros(numNodes, numNodes, 1, self.human_human_edge_rnn_size)).cuda()
 
         # Initialize output array
-        outputs = Variable(torch.zeros(self.seq_length, numNodes, self.output_size)).cuda()
+        outputs = Variable(torch.zeros(self.seq_length, numNodes, 1, self.output_size)).cuda()
 
         for framenum in range(self.seq_length):
-
+            print framenum
             edgeIDs = edgesPresent[framenum]
-
             for edgeID in edgeIDs:
                 # Distinguish between temporal and spatial edge
                 if edgeID[0] == edgeID[1]:
                     # Temporal edge
                     nodeID = edgeID[0]
-                    hidden_states_edge_RNNs[nodeID, nodeID, :] = self.humanhumanEdgeRNN_temporal(edges[framenum, nodeID, nodeID, :],
-                                                                                                 hidden_states_edge_RNNs[nodeID, nodeID, :])
+                    hidden_states_edge_RNNs[nodeID, nodeID, :] = self.humanhumanEdgeRNN_temporal(edges[framenum, nodeID, nodeID, :].view(1, -1), hidden_states_edge_RNNs[nodeID, nodeID, :].clone())
                 else:
                     # Spatial edge
                     nodeID_a = edgeID[0]
                     nodeID_b = edgeID[1]
-                    hidden_states_edge_RNNs[nodeID_a, nodeID_b, :] = self.humanhumanEdgeRNN_spatial(edges[framenum, nodeID_a, nodeID_b, :],
-                                                                                                    hidden_states_edge_RNNs[nodeID_a, nodeID_b, :])
+                    hidden_states_edge_RNNs[nodeID_a, nodeID_b, :] = self.humanhumanEdgeRNN_spatial(edges[framenum, nodeID_a, nodeID_b, :].view(1, -1), hidden_states_edge_RNNs[nodeID_a, nodeID_b, :].clone())
 
             nodeIDs = nodesPresent[framenum]
 
@@ -196,16 +193,15 @@ class SRNN(nn.Module):
                 # Differentiate between temporal and spatial edge
                 spatial_edgeIDs = [x for x in edgeIDs if x[0] != x[1]]
                 # TODO : Simple addition for now
-                h_spatial = torch.zeros(self.human_human_edge_rnn_size)
+                h_spatial = Variable(torch.zeros(1, self.human_human_edge_rnn_size)).cuda()
                 for edgeID in spatial_edgeIDs:
                     h_spatial = h_spatial + hidden_states_edge_RNNs[nodeID, edgeID[1], :]
 
-                h_temporal = hidden_states_edge_RNNs[nodeID, nodeID, :]
+                h_temporal = Variable(torch.zeros(1, self.human_human_edge_rnn_size)).cuda()
+                h_temporal = h_temporal + hidden_states_edge_RNNs[nodeID, nodeID, :]
 
-                h_other = torch.cat((h_temporal, h_spatial), dimension=0)
+                h_other = torch.cat((h_temporal, h_spatial), 1)
 
-                outputs[framenum, nodeID, :],
-                hidden_states_node_RNNs[nodeID, :] = self.humanNodeRNN(nodes[framenum, nodeID, :],
-                                                                       h_other, hidden_states_node_RNNs[nodeID, :])
+                outputs[framenum, nodeID, :], hidden_states_node_RNNs[nodeID, :] = self.humanNodeRNN(nodes[framenum, nodeID, :].view(1, -1), h_other, hidden_states_node_RNNs[nodeID, :].clone())
 
         return outputs
