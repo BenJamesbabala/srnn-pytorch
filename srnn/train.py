@@ -85,11 +85,11 @@ def train(args):
     # datasets.remove(args.leaveDataset)
 
     # Construct the DataLoader object
-    dataloader = DataLoader(args.batch_size, args.seq_length, datasets, forcePreProcess=True)
+    dataloader = DataLoader(args.batch_size, args.seq_length + 1, datasets, forcePreProcess=True)
 
     # Construct the ST-graph object
-    stgraph = ST_GRAPH(args.batch_size, args.seq_length)
-    stgraph_target = ST_GRAPH(args.batch_size, args.seq_length)
+    stgraph = ST_GRAPH(args.batch_size, args.seq_length + 1)
+    # stgraph_target = ST_GRAPH(args.batch_size, args.seq_length)
 
     with open(os.path.join('save', 'config.pkl'), 'wb') as f:
         pickle.dump(args, f)
@@ -99,6 +99,7 @@ def train(args):
 
     optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate)
 
+    print 'Training begin'
     # Training
     for epoch in range(args.num_epochs):
 
@@ -107,34 +108,35 @@ def train(args):
         for batch in range(dataloader.num_batches):
             start = time.time()
 
-            x, y, d = dataloader.next_batch()
+            # TODO Modify dataloader so that it doesn't return separate source and target data
+            # TODO Also, make sure each batch comes from the same dataset
+            x, _, d = dataloader.next_batch()
 
             # Read the st graph from data
             stgraph.readGraph(x)
-            stgraph_target.readGraph(y)
+            # stgraph_target.readGraph(y)
 
             # Loss for this batch
             loss_batch = 0
 
             for sequence in range(dataloader.batch_size):
-                print sequence
                 nodes, edges, nodesPresent, edgesPresent = stgraph.getSequence(sequence)
-                nodes_target, _, nodesPresent_target, _ = stgraph_target.getSequence(sequence)
+                # nodes_target, _, nodesPresent_target, _ = stgraph_target.getSequence(sequence)
 
                 # Convert to cuda variables
                 nodes = Variable(torch.from_numpy(nodes).float()).cuda()
                 edges = Variable(torch.from_numpy(edges).float()).cuda()
-                nodes_target = Variable(torch.from_numpy(nodes_target).float()).cuda()
+                # nodes_target = Variable(torch.from_numpy(nodes_target).float()).cuda()
 
                 # Zero out the gradients
                 net.zero_grad()
 
                 # Forward prop
-                outputs = net(nodes, edges, nodesPresent, edgesPresent)
+                outputs = net(nodes[:args.seq_length], edges[:args.seq_length], nodesPresent[:-1], edgesPresent[:-1])
 
                 # Compute loss
-                loss = Gaussian2DLikelihood(outputs, nodes_target, nodesPresent_target)
-                loss_batch += loss
+                loss = Gaussian2DLikelihood(outputs, nodes[1:], nodesPresent[1:])
+                loss_batch += loss.data[0]
 
                 # Compute gradients
                 loss.backward()
@@ -146,7 +148,7 @@ def train(args):
                 optimizer.step()
 
             stgraph.reset()
-            stgraph_target.reset()
+            # stgraph_target.reset()
             end = time.time()
             loss_batch = loss_batch / dataloader.batch_size
 

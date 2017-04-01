@@ -171,7 +171,6 @@ class SRNN(nn.Module):
         outputs = Variable(torch.zeros(self.seq_length, numNodes, 1, self.output_size)).cuda()
 
         for framenum in range(self.seq_length):
-            print framenum
             edgeIDs = edgesPresent[framenum]
             for edgeID in edgeIDs:
                 # Distinguish between temporal and spatial edge
