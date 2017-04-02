@@ -94,6 +94,8 @@ def train(args):
     with open(os.path.join('save', 'config.pkl'), 'wb') as f:
         pickle.dump(args, f)
 
+    checkpoint_path = os.path.join('save', 'srnn_model.tar')
+
     net = SRNN(args)
     net.cuda()
 
@@ -159,6 +161,13 @@ def train(args):
                                                                                     loss_batch, end - start))
 
             # TODO Save the model
+            if (epoch * dataloader.num_batches + batch) % args.save_every == 0 and ((epoch * dataloader.num_batches + batch) > 0):
+                torch.save({
+                    'epoch': epoch,
+                    'batch': batch,
+                    'iteration': epoch*dataloader.num_batches + batch,
+                    'state_dict': net.state_dict()
+                }, checkpoint_path)
 
 if __name__ == '__main__':
     main()
