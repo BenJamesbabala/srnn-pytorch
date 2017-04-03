@@ -12,12 +12,6 @@ import numpy as np
 import random
 
 
-def getVector(pos_list):
-    pos_i = pos_list[0]
-    pos_j = pos_list[1]
-
-    return np.array(pos_i) - np.array(pos_j)
-
 class DataLoader():
 
     def __init__(self, batch_size=50, seq_length=5, datasets=[0, 1, 2, 3, 4], forcePreProcess=False):
