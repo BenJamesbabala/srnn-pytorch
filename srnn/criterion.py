@@ -9,6 +9,7 @@ Date : 30th March 2017
 
 import torch
 import numpy as np
+from helper import getCoef
 
 
 def Gaussian2DLikelihood(outputs, targets, nodesPresent):
@@ -21,12 +22,8 @@ def Gaussian2DLikelihood(outputs, targets, nodesPresent):
     '''
 
     # Extract mean, std devs and correlation
-    mux, muy, sx, sy, corr = outputs[:, :, 0, 0], outputs[:, :, 0, 1], outputs[:, :, 0, 2], outputs[:, :, 0, 3], outputs[:, :, 0, 4]
-
-    sx = torch.exp(sx)
-    sy = torch.exp(sy)
-    corr = torch.tanh(corr)
-
+    mux, muy, sx, sy, corr = getCoef(outputs)
+    
     # Compute factors
     normx = targets[:, :, 0] - mux
     normy = targets[:, :, 1] - muy
