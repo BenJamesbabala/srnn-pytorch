@@ -130,11 +130,16 @@ def train(args):
                 edges = Variable(torch.from_numpy(edges).float()).cuda()
                 # nodes_target = Variable(torch.from_numpy(nodes_target).float()).cuda()
 
+                # Define hidden states
+                numNodes = nodes.size()[1]
+                hidden_states_node_RNNs = Variable(torch.zeros(numNodes, 1, args.human_node_rnn_size)).cuda()
+                hidden_states_edge_RNNs = Variable(torch.zeros(numNodes, numNodes, 1, args.human_human_edge_rnn_size)).cuda()
+
                 # Zero out the gradients
                 net.zero_grad()
 
                 # Forward prop
-                outputs = net(nodes[:args.seq_length], edges[:args.seq_length], nodesPresent[:-1], edgesPresent[:-1])
+                outputs, _, _ = net(nodes[:args.seq_length], edges[:args.seq_length], nodesPresent[:-1], edgesPresent[:-1], hidden_states_node_RNNs, hidden_states_edge_RNNs)
 
                 # Compute loss
                 loss = Gaussian2DLikelihood(outputs, nodes[1:], nodesPresent[1:])
@@ -161,7 +166,8 @@ def train(args):
                                                                                     loss_batch, end - start))
 
             # TODO Save the model
-            if (epoch * dataloader.num_batches + batch) % args.save_every == 0 and ((epoch * dataloader.num_batches + batch) > 0):
+            if ((epoch * dataloader.num_batches + batch) % args.save_every == 0 and ((epoch * dataloader.num_batches + batch) > 0)) or (epoch * dataloader.num_batches + batch + 1 == args.num_epochs * dataloader.num_batches):
+                print 'Saving model'
                 torch.save({
                     'epoch': epoch,
                     'batch': batch,
