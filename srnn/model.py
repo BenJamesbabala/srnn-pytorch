@@ -149,6 +149,7 @@ class SRNN(nn.Module):
     def forward(self, nodes, edges, nodesPresent, edgesPresent, hidden_states_node_RNNs, hidden_states_edge_RNNs):
         '''
         Parameters
+        ==========
 
         nodes : A tensor of shape seq_length x numNodes x 2
         Each row contains (x, y)
@@ -168,6 +169,16 @@ class SRNN(nn.Module):
 
         hidden_states_edge_RNNs : A tensor of size numNodes x numNodes x 1 x edge_rnn_size
         Contains hidden states of the edge RNNs
+
+        Returns
+        =======
+
+        outputs : A tensor of shape seq_length x numNodes x 1 x 5
+        Contains the predictions for next time-step
+
+        hidden_states_node_RNNs
+
+        hidden_states_edge_RNNs
         '''
         # Get number of nodes
         numNodes = nodes.size()[1]
