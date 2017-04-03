@@ -6,7 +6,8 @@ Author : Anirudh Vemula
 Date : 15th March 2017
 '''
 import numpy as np
-from utils import getVector
+from helper import getVector
+
 
 class ST_GRAPH():
 
