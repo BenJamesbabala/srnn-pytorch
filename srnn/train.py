@@ -94,7 +94,7 @@ def train(args):
     with open(os.path.join('save', 'config.pkl'), 'wb') as f:
         pickle.dump(args, f)
 
-    checkpoint_path = os.path.join('save', 'srnn_model.tar')
+    checkpoint_path = lambda x: os.path.join('save', 'srnn_model_'+str(x)+'.tar')
 
     net = SRNN(args)
     net.cuda()
@@ -173,7 +173,7 @@ def train(args):
                     'batch': batch,
                     'iteration': epoch*dataloader.num_batches + batch,
                     'state_dict': net.state_dict()
-                }, checkpoint_path)
+                }, checkpoint_path(epoch*dataloader.num_batches + batch))
 
 if __name__ == '__main__':
     main()
