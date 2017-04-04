@@ -52,7 +52,7 @@ def main():
     net = SRNN(saved_args, True)
     net.cuda()
 
-    checkpoint_path = os.path.join('save', 'srnn_model.tar')
+    checkpoint_path = os.path.join('save', 'srnn_model_'+str(sample_args.iteration)+'.tar')
     if os.path.isfile(checkpoint_path):
         print 'Loading checkpoint'
         checkpoint = torch.load(checkpoint_path)
@@ -98,7 +98,7 @@ def main():
 
         print 'Processed trajectory number : ', batch, 'out of', dataloader.num_batches, 'trajectories in time', end - start
 
-        results.append((nodes.data.cpu().numpy(), ret_nodes.data.cpu().numpy(), sample_args.obs_length))
+        results.append((nodes.data.cpu().numpy(), ret_nodes.data.cpu().numpy(), nodesPresent, sample_args.obs_length))
 
         stgraph.reset()
 
