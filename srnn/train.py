@@ -38,7 +38,7 @@ def main():
                         help='Dimension of the node output')
 
     # Embedding size
-    parser.add_argument('--human_node_embedding_size', type=int, default=64,
+    parser.add_argument('--human_node_embedding_size', type=int, default=32,
                         help='Embedding size of node features')
     parser.add_argument('--human_human_edge_embedding_size', type=int, default=32,
                         help='Embedding size of edge features')
@@ -61,6 +61,10 @@ def main():
     # Gradient value at which it should be clipped
     parser.add_argument('--grad_clip', type=float, default=10.,
                         help='clip gradients at this value')
+    # Lambda regularization parameter (L2)
+    parser.add_argument('--lambda_param', type=float, default=0.005,
+                        help='L2 regularization parameter')
+
     # Learning rate parameter
     parser.add_argument('--learning_rate', type=float, default=0.005,
                         help='learning rate')
@@ -71,9 +75,6 @@ def main():
     # The leave out dataset
     parser.add_argument('--leaveDataset', type=int, default=3,
                         help='The dataset index to be left out in training')
-    # Lambda regularization parameter (L2)
-    parser.add_argument('--lambda_param', type=float, default=0.005,
-                        help='L2 regularization parameter')
 
     args = parser.parse_args()
     train(args)
@@ -94,12 +95,13 @@ def train(args):
     with open(os.path.join('save', 'config.pkl'), 'wb') as f:
         pickle.dump(args, f)
 
-    checkpoint_path = lambda x: os.path.join('save', 'srnn_model_'+str(x)+'.tar')
+    def checkpoint_path(x):
+        os.path.join('save', 'srnn_model_'+str(x)+'.tar')
 
     net = SRNN(args)
     net.cuda()
 
-    optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate)
+    optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
 
     print 'Training begin'
     # Training
@@ -122,6 +124,7 @@ def train(args):
             loss_batch = 0
 
             for sequence in range(dataloader.batch_size):
+                start_seq = time.time()
                 nodes, edges, nodesPresent, edgesPresent = stgraph.getSequence(sequence)
                 # nodes_target, _, nodesPresent_target, _ = stgraph_target.getSequence(sequence)
 
@@ -141,8 +144,13 @@ def train(args):
                 # Forward prop
                 outputs, _, _ = net(nodes[:args.seq_length], edges[:args.seq_length], nodesPresent[:-1], edgesPresent[:-1], hidden_states_node_RNNs, hidden_states_edge_RNNs)
 
+                end_seq = time.time()
+                # print 'Time for forward prop', end_seq - start_seq
+
+                start_loss = time.time()
                 # Compute loss
                 loss = Gaussian2DLikelihood(outputs, nodes[1:], nodesPresent[1:])
+
                 loss_batch += loss.data[0]
 
                 # Compute gradients
@@ -153,6 +161,8 @@ def train(args):
 
                 # Update parameters
                 optimizer.step()
+                end_loss = time.time()
+                # print 'Time for loss and optimizer', end_loss - start_loss
 
             stgraph.reset()
             # stgraph_target.reset()

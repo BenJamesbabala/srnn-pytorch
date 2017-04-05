@@ -16,17 +16,17 @@ def Gaussian2DLikelihood(outputs, targets, nodesPresent):
     '''
     Parameters:
 
-    outputs: Torch variable containing tensor of shape seq_length x numNodes x output_size
-    targets: Torch variable containing tensor of shape seq_length x numNodes x input_size
+    outputs: Torch variable containing tensor of shape seq_length x numNodes x 1 x output_size
+    targets: Torch variable containing tensor of shape seq_length x numNodes x 1 x input_size
     nodesPresent : A list of lists, of size seq_length. Each list contains the nodeIDs that are present in the frame
     '''
 
     # Extract mean, std devs and correlation
     mux, muy, sx, sy, corr = getCoef(outputs)
-    
+
     # Compute factors
-    normx = targets[:, :, 0] - mux
-    normy = targets[:, :, 1] - muy
+    normx = targets[:, :, 0, 0] - mux
+    normy = targets[:, :, 0, 1] - muy
     sxsy = sx * sy
 
     z = (normx/sx)**2 + (normy/sy)**2 - 2*((corr*normx*normy)/sxsy)

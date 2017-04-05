@@ -151,10 +151,10 @@ class SRNN(nn.Module):
         Parameters
         ==========
 
-        nodes : A tensor of shape seq_length x numNodes x 2
+        nodes : A tensor of shape seq_length x numNodes x 1 x 2
         Each row contains (x, y)
 
-        edges : A tensor of shape seq_length x numNodes x numNodes x 2
+        edges : A tensor of shape seq_length x numNodes x numNodes x 1 x 2
         Each row contains the vector representing the edge
         If edge doesn't exist, then the row contains zeros
 
@@ -183,10 +183,6 @@ class SRNN(nn.Module):
         # Get number of nodes
         numNodes = nodes.size()[1]
 
-        # Initialize hidden states of node RNNs and edge RNNs
-        # hidden_states_node_RNNs = Variable(torch.zeros(numNodes, 1, self.human_node_rnn_size)).cuda()
-        # hidden_states_edge_RNNs = Variable(torch.zeros(numNodes, numNodes, 1, self.human_human_edge_rnn_size)).cuda()
-
         # Initialize output array
         outputs = Variable(torch.zeros(self.seq_length, numNodes, 1, self.output_size)).cuda()
 
@@ -197,12 +193,12 @@ class SRNN(nn.Module):
                 if edgeID[0] == edgeID[1]:
                     # Temporal edge
                     nodeID = edgeID[0]
-                    hidden_states_edge_RNNs[nodeID, nodeID, :] = self.humanhumanEdgeRNN_temporal(edges[framenum, nodeID, nodeID, :].view(1, -1), hidden_states_edge_RNNs[nodeID, nodeID, :].clone())
+                    hidden_states_edge_RNNs[nodeID, nodeID] = self.humanhumanEdgeRNN_temporal(edges[framenum, nodeID, nodeID], hidden_states_edge_RNNs[nodeID, nodeID].clone())
                 else:
                     # Spatial edge
                     nodeID_a = edgeID[0]
                     nodeID_b = edgeID[1]
-                    hidden_states_edge_RNNs[nodeID_a, nodeID_b, :] = self.humanhumanEdgeRNN_spatial(edges[framenum, nodeID_a, nodeID_b, :].view(1, -1), hidden_states_edge_RNNs[nodeID_a, nodeID_b, :].clone())
+                    hidden_states_edge_RNNs[nodeID_a, nodeID_b] = self.humanhumanEdgeRNN_spatial(edges[framenum, nodeID_a, nodeID_b], hidden_states_edge_RNNs[nodeID_a, nodeID_b].clone())
 
             nodeIDs = nodesPresent[framenum]
 
@@ -214,13 +210,13 @@ class SRNN(nn.Module):
                 # TODO : Simple addition for now
                 h_spatial = Variable(torch.zeros(1, self.human_human_edge_rnn_size)).cuda()
                 for edgeID in spatial_edgeIDs:
-                    h_spatial = h_spatial + hidden_states_edge_RNNs[nodeID, edgeID[1], :]
+                    h_spatial = h_spatial + hidden_states_edge_RNNs[nodeID, edgeID[1]]
 
                 h_temporal = Variable(torch.zeros(1, self.human_human_edge_rnn_size)).cuda()
-                h_temporal = h_temporal + hidden_states_edge_RNNs[nodeID, nodeID, :]
+                h_temporal = h_temporal + hidden_states_edge_RNNs[nodeID, nodeID]
 
                 h_other = torch.cat((h_temporal, h_spatial), 1)
 
-                outputs[framenum, nodeID, :], hidden_states_node_RNNs[nodeID, :] = self.humanNodeRNN(nodes[framenum, nodeID, :].view(1, -1), h_other, hidden_states_node_RNNs[nodeID, :].clone())
+                outputs[framenum, nodeID], hidden_states_node_RNNs[nodeID] = self.humanNodeRNN(nodes[framenum, nodeID], h_other, hidden_states_node_RNNs[nodeID].clone())
 
         return outputs, hidden_states_node_RNNs, hidden_states_edge_RNNs
