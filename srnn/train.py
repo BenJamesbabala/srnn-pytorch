@@ -52,10 +52,10 @@ def main():
                         help='Batch size')
 
     # Number of epochs
-    parser.add_argument('--num_epochs', type=int, default=100,
+    parser.add_argument('--num_epochs', type=int, default=50,
                         help='number of epochs')
     # Frequency at which the model should be saved parameter
-    parser.add_argument('--save_every', type=int, default=400,
+    parser.add_argument('--save_every', type=int, default=200,
                         help='save frequency')
 
     # Gradient value at which it should be clipped
@@ -81,9 +81,9 @@ def main():
 
 
 def train(args):
-    datasets = range(1)
+    datasets = range(4)
     # Remove the leave out dataset from the datasets
-    # datasets.remove(args.leaveDataset)
+    datasets.remove(args.leaveDataset)
 
     # Construct the DataLoader object
     dataloader = DataLoader(args.batch_size, args.seq_length + 1, datasets, forcePreProcess=True)
@@ -96,7 +96,7 @@ def train(args):
         pickle.dump(args, f)
 
     def checkpoint_path(x):
-        os.path.join('save', 'srnn_model_'+str(x)+'.tar')
+        return os.path.join('save', 'srnn_model_'+str(x)+'.tar')
 
     net = SRNN(args)
     net.cuda()
