@@ -141,24 +141,24 @@ def sample(nodes, edges, nodesPresent, edgesPresent, args, net):
     numNodes = nodes.size()[1]
 
     # Initialize hidden states for the nodes
-    h_nodes = Variable(torch.zeros(numNodes, 1, net.args.human_node_rnn_size), volatile=True).cuda()
-    h_edges = Variable(torch.zeros(numNodes, numNodes, 1, net.args.human_human_edge_rnn_size), volatile=True).cuda()
+    h_nodes = Variable(torch.zeros(numNodes, net.args.human_node_rnn_size), volatile=True).cuda()
+    h_edges = Variable(torch.zeros(numNodes * numNodes, net.args.human_human_edge_rnn_size), volatile=True).cuda()
 
     # Propagate the observed length of the trajectory
     for tstep in range(args.obs_length-1):
-        _, h_nodes, h_edges = net(nodes[tstep].view(1, numNodes, 2), edges[tstep].view(1, numNodes, numNodes, 2), [nodesPresent[tstep]], [edgesPresent[tstep]], h_nodes, h_edges)
+        _, h_nodes, h_edges = net(nodes[tstep], edges[tstep], [nodesPresent[tstep]], [edgesPresent[tstep]], h_nodes, h_edges)
 
     # Initialize the return data structures
     ret_nodes = Variable(torch.zeros(args.obs_length + args.pred_length, numNodes, 2), volatile=True).cuda()
     ret_nodes[:args.obs_length, :, :] = nodes.clone()
 
-    ret_edges = Variable(torch.zeros(args.obs_length + args.pred_length, numNodes, numNodes, 2), volatile=True).cuda()
-    ret_edges[:args.obs_length, :, :, :] = edges.clone()
+    ret_edges = Variable(torch.zeros((args.obs_length + args.pred_length), numNodes * numNodes, 2), volatile=True).cuda()
+    ret_edges[:args.obs_length, :, :] = edges.clone()
 
     # Propagate the predicted length of trajectory (sampling from previous prediction)
     for tstep in range(args.obs_length-1, args.pred_length + args.obs_length-1):
         # TODO Not keeping track of nodes leaving the frame (or new nodes entering the frame, which I don't think we can do anyway)
-        outputs, h_nodes, h_edges = net(ret_nodes[tstep].view(1, numNodes, 2), ret_edges[tstep].view(1, numNodes, numNodes, 2), [nodesPresent[args.obs_length-1]], [edgesPresent[args.obs_length-1]], h_nodes, h_edges)
+        outputs, h_nodes, h_edges = net(ret_nodes[tstep], ret_edges[tstep], [nodesPresent[args.obs_length-1]], [edgesPresent[args.obs_length-1]], h_nodes, h_edges)
 
         # Sample from o
         # mux, ... are tensors of shape 1 x numNodes
@@ -170,7 +170,7 @@ def sample(nodes, edges, nodesPresent, edgesPresent, args, net):
 
         # Compute edges
         # TODO Currently, assuming edges from the last observed time-step will stay for the entire prediction length
-        ret_edges[tstep + 1, :, :, :] = compute_edges(ret_nodes.data, tstep + 1, edgesPresent[args.obs_length-1])
+        ret_edges[tstep + 1, :, :] = compute_edges(ret_nodes.data, tstep + 1, edgesPresent[args.obs_length-1])
 
     return ret_nodes
 
