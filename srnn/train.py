@@ -38,7 +38,7 @@ def main():
                         help='Dimension of the node output')
 
     # Embedding size
-    parser.add_argument('--human_node_embedding_size', type=int, default=32,
+    parser.add_argument('--human_node_embedding_size', type=int, default=64,
                         help='Embedding size of node features')
     parser.add_argument('--human_human_edge_embedding_size', type=int, default=32,
                         help='Embedding size of edge features')
@@ -62,11 +62,11 @@ def main():
     parser.add_argument('--grad_clip', type=float, default=10.,
                         help='clip gradients at this value')
     # Lambda regularization parameter (L2)
-    parser.add_argument('--lambda_param', type=float, default=0.005,
+    parser.add_argument('--lambda_param', type=float, default=0.001,
                         help='L2 regularization parameter')
 
     # Learning rate parameter
-    parser.add_argument('--learning_rate', type=float, default=0.005,
+    parser.add_argument('--learning_rate', type=float, default=0.001,
                         help='learning rate')
     # Decay rate for the learning rate parameter
     parser.add_argument('--decay_rate', type=float, default=0.95,
