@@ -26,7 +26,7 @@ def main():
     # RNN size
     parser.add_argument('--human_node_rnn_size', type=int, default=128,
                         help='Size of Human Node RNN hidden state')
-    parser.add_argument('--human_human_edge_rnn_size', type=int, default=64,
+    parser.add_argument('--human_human_edge_rnn_size', type=int, default=128,
                         help='Size of Human Human Edge RNN hidden state')
 
     # Input and output size
@@ -40,11 +40,11 @@ def main():
     # Embedding size
     parser.add_argument('--human_node_embedding_size', type=int, default=64,
                         help='Embedding size of node features')
-    parser.add_argument('--human_human_edge_embedding_size', type=int, default=32,
+    parser.add_argument('--human_human_edge_embedding_size', type=int, default=64,
                         help='Embedding size of edge features')
 
     # Sequence length
-    parser.add_argument('--seq_length', type=int, default=10,
+    parser.add_argument('--seq_length', type=int, default=8,
                         help='Sequence length')
 
     # Batch size
@@ -59,7 +59,7 @@ def main():
                         help='save frequency')
 
     # Gradient value at which it should be clipped
-    parser.add_argument('--grad_clip', type=float, default=10.,
+    parser.add_argument('--grad_clip', type=float, default=1.,
                         help='clip gradients at this value')
     # Lambda regularization parameter (L2)
     parser.add_argument('--lambda_param', type=float, default=0.001,
@@ -90,7 +90,6 @@ def train(args):
 
     # Construct the ST-graph object
     stgraph = ST_GRAPH(args.batch_size, args.seq_length + 1)
-    # stgraph_target = ST_GRAPH(args.batch_size, args.seq_length)
 
     with open(os.path.join('save', 'config.pkl'), 'wb') as f:
         pickle.dump(args, f)
@@ -101,12 +100,14 @@ def train(args):
     net = SRNN(args)
     net.cuda()
 
-    optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
-
+    # optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
+    # optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate)
+    learning_rate = args.learning_rate
     print 'Training begin'
     # Training
     for epoch in range(args.num_epochs):
-
+        optimizer = torch.optim.RMSprop(net.parameters(), lr=learning_rate)
+        learning_rate *= args.decay_rate
         dataloader.reset_batch_pointer()
 
         for batch in range(dataloader.num_batches):
@@ -118,36 +119,33 @@ def train(args):
 
             # Read the st graph from data
             stgraph.readGraph(x)
-            # stgraph_target.readGraph(y)
 
             # Loss for this batch
             loss_batch = 0
 
             for sequence in range(dataloader.batch_size):
-                start_seq = time.time()
                 nodes, edges, nodesPresent, edgesPresent = stgraph.getSequence(sequence)
-                # nodes_target, _, nodesPresent_target, _ = stgraph_target.getSequence(sequence)
 
                 # Convert to cuda variables
                 nodes = Variable(torch.from_numpy(nodes).float()).cuda()
                 edges = Variable(torch.from_numpy(edges).float()).cuda()
-                # nodes_target = Variable(torch.from_numpy(nodes_target).float()).cuda()
 
                 # Define hidden states
                 numNodes = nodes.size()[1]
                 hidden_states_node_RNNs = Variable(torch.zeros(numNodes, args.human_node_rnn_size)).cuda()
                 hidden_states_edge_RNNs = Variable(torch.zeros(numNodes*numNodes, args.human_human_edge_rnn_size)).cuda()
+                cell_states_node_RNNs = Variable(torch.zeros(numNodes, args.human_node_rnn_size)).cuda()
+                cell_states_edge_RNNs = Variable(torch.zeros(numNodes*numNodes, args.human_human_edge_rnn_size)).cuda()
 
                 # Zero out the gradients
                 net.zero_grad()
+                optimizer.zero_grad()
 
                 # Forward prop
-                outputs, _, _ = net(nodes[:args.seq_length], edges[:args.seq_length], nodesPresent[:-1], edgesPresent[:-1], hidden_states_node_RNNs, hidden_states_edge_RNNs)
+                outputs, _, _, _, _ = net(nodes[:args.seq_length], edges[:args.seq_length], nodesPresent[:-1], edgesPresent[:-1],
+                                          hidden_states_node_RNNs, hidden_states_edge_RNNs,
+                                          cell_states_node_RNNs, cell_states_edge_RNNs)
 
-                end_seq = time.time()
-                # print 'Time for forward prop', end_seq - start_seq
-
-                start_loss = time.time()
                 # Compute loss
                 loss = Gaussian2DLikelihood(outputs, nodes[1:], nodesPresent[1:])
 
@@ -161,11 +159,8 @@ def train(args):
 
                 # Update parameters
                 optimizer.step()
-                end_loss = time.time()
-                # print 'Time for loss and optimizer', end_loss - start_loss
 
             stgraph.reset()
-            # stgraph_target.reset()
             end = time.time()
             loss_batch = loss_batch / dataloader.batch_size
 
@@ -175,7 +170,6 @@ def train(args):
                                                                                     epoch,
                                                                                     loss_batch, end - start))
 
-            # TODO Save the model
             if ((epoch * dataloader.num_batches + batch) % args.save_every == 0 and ((epoch * dataloader.num_batches + batch) > 0)) or (epoch * dataloader.num_batches + batch + 1 == args.num_epochs * dataloader.num_batches):
                 print 'Saving model'
                 torch.save({
