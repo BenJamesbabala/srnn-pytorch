@@ -184,70 +184,65 @@ class SRNN(nn.Module):
         numNodes = nodes.size()[1]
 
         # Initialize output array
-        outputs = Variable(torch.zeros(self.seq_length, numNodes, 1, self.output_size)).cuda()
+        outputs = Variable(torch.zeros(self.seq_length * numNodes, self.output_size)).cuda()
+        # outputs_assign = outputs.view(self.seq_length * numNodes, self.output_size)
 
         for framenum in range(self.seq_length):
             edgeIDs = edgesPresent[framenum]
             temporal_edges = [x for x in edgeIDs if x[0] == x[1]]
             spatial_edges = [x for x in edgeIDs if x[0] != x[1]]
 
-            if len(edgeIDs) == 0 or len(temporal_edges) == 0 or len(spatial_edges) == 0:
-                continue
+            hidden_states_nodes_from_edges_temporal = Variable(torch.zeros(numNodes, self.human_human_edge_rnn_size).cuda())
+            hidden_states_nodes_from_edges_spatial = Variable(torch.zeros(numNodes, self.human_human_edge_rnn_size).cuda())
 
-            list_of_temporal_nodes = Variable(torch.LongTensor([x[0] for x in edgeIDs if x[0] == x[1]]).cuda())
+            if len(edgeIDs) != 0:
 
-            list_of_start_nodes = Variable(torch.LongTensor([x[0] for x in edgeIDs if x[0] != x[1]]).cuda())
-            list_of_end_nodes = Variable(torch.LongTensor([x[1] for x in edgeIDs if x[0] != x[1]]).cuda())
+                if len(temporal_edges) != 0:
 
-            edges_start = torch.index_select(edges[framenum], 0, list_of_start_nodes)
-            edges_spatial_start_end = torch.index_select(edges_start, 1, list_of_end_nodes)
+                    list_of_temporal_edges = Variable(torch.LongTensor([x[0]*x[0] for x in edgeIDs if x[0] == x[1]]).cuda())
+                    list_of_temporal_nodes = torch.LongTensor([x[0] for x in edgeIDs if x[0] == x[1]]).cuda()
 
-            hidden_start = torch.index_select(hidden_states_edge_RNNs.clone(), 0, list_of_start_nodes)
-            hidden_spatial_start_end = torch.index_select(hidden_start, 1, list_of_end_nodes)
+                    edges_temporal_start_end = torch.index_select(edges[framenum], 0, list_of_temporal_edges)
+                    hidden_temporal_start_end = torch.index_select(hidden_states_edge_RNNs, 0, list_of_temporal_edges)
 
-            edges_temporal_start = torch.index_select(edges[framenum], 0, list_of_temporal_nodes)
-            edges_temporal_start_end = torch.index_select(edges_temporal_start, 1, list_of_temporal_nodes)
+                    h_temporal = self.humanhumanEdgeRNN_temporal(edges_temporal_start_end, hidden_temporal_start_end)
 
-            hidden_temporal_start = torch.index_select(hidden_states_edge_RNNs.clone(), 0, list_of_temporal_nodes)
-            hidden_temporal_start_end = torch.index_select(hidden_temporal_start, 1, list_of_temporal_nodes)
+                    hidden_states_edge_RNNs[list_of_temporal_edges.data] = h_temporal
+                    hidden_states_nodes_from_edges_temporal[list_of_temporal_nodes] = h_temporal
 
-            print edges_temporal_start_end
+                if len(spatial_edges) != 0:
 
-            h_temporal = self.humanhumanEdgeRNN_temporal(edges_temporal_start_end, hidden_temporal_start_end)
-            h_spatial = self.humanhumanEdgeRNN_spatial(edges_spatial_start_end, hidden_spatial_start_end)
+                    list_of_spatial_edges = Variable(torch.LongTensor([x[0]*(numNodes) + x[1] for x in edgeIDs if x[0] != x[1]]).cuda())
+                    list_of_spatial_nodes = [x[0] for x in edgeIDs if x[0] != x[1]]
 
-            print h_temporal
-            '''
-            for edgeID in edgeIDs:
-                # Distinguish between temporal and spatial edge
-                if edgeID[0] == edgeID[1]:
-                    # Temporal edge
-                    nodeID = edgeID[0]
-                    hidden_states_edge_RNNs[nodeID, nodeID] = self.humanhumanEdgeRNN_temporal(edges[framenum, nodeID, nodeID], hidden_states_edge_RNNs[nodeID, nodeID].clone())
-                else:
-                    # Spatial edge
-                    nodeID_a = edgeID[0]
-                    nodeID_b = edgeID[1]
-                    hidden_states_edge_RNNs[nodeID_a, nodeID_b] = self.humanhumanEdgeRNN_spatial(edges[framenum, nodeID_a, nodeID_b], hidden_states_edge_RNNs[nodeID_a, nodeID_b].clone())
-            '''
+                    edges_spatial_start_end = torch.index_select(edges[framenum], 0, list_of_spatial_edges)
+                    hidden_spatial_start_end = torch.index_select(hidden_states_edge_RNNs, 0, list_of_spatial_edges)
+
+                    h_spatial = self.humanhumanEdgeRNN_spatial(edges_spatial_start_end, hidden_spatial_start_end)
+
+                    hidden_states_edge_RNNs[list_of_spatial_edges.data] = h_spatial
+                    for i, node in enumerate(list_of_spatial_nodes):
+                        hidden_states_nodes_from_edges_spatial[node] = hidden_states_nodes_from_edges_spatial[node] + h_spatial[i]
 
             nodeIDs = nodesPresent[framenum]
 
-            for nodeID in nodeIDs:
-                # Get edges corresponding to the node
-                edgeIDs = [x for x in edgesPresent[framenum] if x[0] == nodeID]
-                # Differentiate between temporal and spatial edge
-                spatial_edgeIDs = [x for x in edgeIDs if x[0] != x[1]]
-                # TODO : Simple addition for now
-                h_spatial = Variable(torch.zeros(1, self.human_human_edge_rnn_size)).cuda()
-                for edgeID in spatial_edgeIDs:
-                    h_spatial = h_spatial + hidden_states_edge_RNNs[nodeID, edgeID[1]]
+            if len(nodeIDs) != 0:
 
-                h_temporal = Variable(torch.zeros(1, self.human_human_edge_rnn_size)).cuda()
-                h_temporal = h_temporal + hidden_states_edge_RNNs[nodeID, nodeID]
+                list_of_nodes = Variable(torch.LongTensor(nodeIDs).cuda())
 
-                h_other = torch.cat((h_temporal, h_spatial), 1)
+                nodes_current = torch.index_select(nodes[framenum], 0, list_of_nodes)
 
-                outputs[framenum, nodeID], hidden_states_node_RNNs[nodeID] = self.humanNodeRNN(nodes[framenum, nodeID], h_other, hidden_states_node_RNNs[nodeID].clone())
+                hidden_nodes_current = torch.index_select(hidden_states_node_RNNs, 0, list_of_nodes)
 
-        return outputs, hidden_states_node_RNNs, hidden_states_edge_RNNs
+                hidden_other_current = torch.cat((hidden_states_nodes_from_edges_temporal[list_of_nodes.data],
+                                                  hidden_states_nodes_from_edges_spatial[list_of_nodes.data]), 1)
+
+                outputs[framenum * list_of_nodes.data], h_nodes = self.humanNodeRNN(nodes_current, hidden_other_current, hidden_nodes_current)
+                hidden_states_node_RNNs[list_of_nodes.data] = h_nodes
+
+        outputs_return = Variable(torch.zeros(self.seq_length, numNodes, self.output_size).cuda())
+        for framenum in range(self.seq_length):
+            for node in range(numNodes):
+                outputs_return[framenum, node, :] = outputs[framenum*node, :]
+
+        return outputs_return, hidden_states_node_RNNs, hidden_states_edge_RNNs

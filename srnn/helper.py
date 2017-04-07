@@ -17,7 +17,7 @@ def getVector(pos_list):
 
 
 def getCoef(outputs):
-    mux, muy, sx, sy, corr = outputs[:, :, 0, 0], outputs[:, :, 0, 1], outputs[:, :, 0, 2], outputs[:, :, 0, 3], outputs[:, :, 0, 4]
+    mux, muy, sx, sy, corr = outputs[:, :, 0], outputs[:, :, 1], outputs[:, :, 2], outputs[:, :, 3], outputs[:, :, 4]
 
     sx = torch.exp(sx)
     sy = torch.exp(sy)

@@ -25,8 +25,8 @@ def Gaussian2DLikelihood(outputs, targets, nodesPresent):
     mux, muy, sx, sy, corr = getCoef(outputs)
 
     # Compute factors
-    normx = targets[:, :, 0, 0] - mux
-    normy = targets[:, :, 0, 1] - muy
+    normx = targets[:, :, 0] - mux
+    normy = targets[:, :, 1] - muy
     sxsy = sx * sy
 
     z = (normx/sx)**2 + (normy/sy)**2 - 2*((corr*normx*normy)/sxsy)
