@@ -135,8 +135,8 @@ def train(args):
 
                 # Define hidden states
                 numNodes = nodes.size()[1]
-                hidden_states_node_RNNs = Variable(torch.zeros(numNodes, 1, args.human_node_rnn_size)).cuda()
-                hidden_states_edge_RNNs = Variable(torch.zeros(numNodes, numNodes, 1, args.human_human_edge_rnn_size)).cuda()
+                hidden_states_node_RNNs = Variable(torch.zeros(numNodes, args.human_node_rnn_size)).cuda()
+                hidden_states_edge_RNNs = Variable(torch.zeros(numNodes*numNodes, args.human_human_edge_rnn_size)).cuda()
 
                 # Zero out the gradients
                 net.zero_grad()
