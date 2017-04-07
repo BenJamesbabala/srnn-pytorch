@@ -9,6 +9,7 @@ Date : 16th March 2017
 import torch.nn as nn
 from torch.autograd import Variable
 import torch
+import numpy as np
 
 
 class HumanNodeRNN(nn.Module):
@@ -213,7 +214,7 @@ class SRNN(nn.Module):
                 if len(spatial_edges) != 0:
 
                     list_of_spatial_edges = Variable(torch.LongTensor([x[0]*(numNodes) + x[1] for x in edgeIDs if x[0] != x[1]]).cuda())
-                    list_of_spatial_nodes = [x[0] for x in edgeIDs if x[0] != x[1]]
+                    list_of_spatial_nodes = np.array([x[0] for x in edgeIDs if x[0] != x[1]])
 
                     edges_spatial_start_end = torch.index_select(edges[framenum], 0, list_of_spatial_edges)
                     hidden_spatial_start_end = torch.index_select(hidden_states_edge_RNNs, 0, list_of_spatial_edges)
@@ -221,8 +222,14 @@ class SRNN(nn.Module):
                     h_spatial = self.humanhumanEdgeRNN_spatial(edges_spatial_start_end, hidden_spatial_start_end)
 
                     hidden_states_edge_RNNs[list_of_spatial_edges.data] = h_spatial
-                    for i, node in enumerate(list_of_spatial_nodes):
-                        hidden_states_nodes_from_edges_spatial[node] = hidden_states_nodes_from_edges_spatial[node] + h_spatial[i]
+
+                    # for i, node in enumerate(list_of_spatial_nodes):
+                    #    hidden_states_nodes_from_edges_spatial[node] = hidden_states_nodes_from_edges_spatial[node] + h_spatial[i]
+                    for node in range(numNodes):
+                        l = torch.LongTensor(np.where(list_of_spatial_nodes == node)[0]).cuda()
+                        if torch.numel(l) == 0:
+                            continue
+                        hidden_states_nodes_from_edges_spatial[node] = torch.sum(h_spatial[l], 0)
 
             nodeIDs = nodesPresent[framenum]
 
