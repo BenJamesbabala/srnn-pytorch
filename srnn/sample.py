@@ -20,6 +20,7 @@ from utils import DataLoader
 from st_graph import ST_GRAPH
 from model import SRNN
 from helper import getCoef, sample_gaussian_2d, compute_edges, get_mean_error
+from criterion import Gaussian2DLikelihood
 
 
 def main():
@@ -29,10 +30,10 @@ def main():
 
     parser = argparse.ArgumentParser()
     # Observed length of the trajectory parameter
-    parser.add_argument('--obs_length', type=int, default=5,
+    parser.add_argument('--obs_length', type=int, default=4,
                         help='Observed length of the trajectory')
     # Predicted length of the trajectory parameter
-    parser.add_argument('--pred_length', type=int, default=5,
+    parser.add_argument('--pred_length', type=int, default=4,
                         help='Predicted length of the trajectory')
     # Test dataset
     parser.add_argument('--test_dataset', type=int, default=3,
@@ -143,10 +144,13 @@ def sample(nodes, edges, nodesPresent, edgesPresent, args, net):
     # Initialize hidden states for the nodes
     h_nodes = Variable(torch.zeros(numNodes, net.args.human_node_rnn_size), volatile=True).cuda()
     h_edges = Variable(torch.zeros(numNodes * numNodes, net.args.human_human_edge_rnn_size), volatile=True).cuda()
+    c_nodes = Variable(torch.zeros(numNodes, net.args.human_node_rnn_size), volatile=True).cuda()
+    c_edges = Variable(torch.zeros(numNodes * numNodes, net.args.human_human_edge_rnn_size), volatile=True).cuda()
 
     # Propagate the observed length of the trajectory
     for tstep in range(args.obs_length-1):
-        _, h_nodes, h_edges = net(nodes[tstep], edges[tstep], [nodesPresent[tstep]], [edgesPresent[tstep]], h_nodes, h_edges)
+        out_obs, h_nodes, h_edges, c_nodes, c_edges = net(nodes[tstep].view(1, numNodes, 2), edges[tstep].view(1, numNodes*numNodes, 2), [nodesPresent[tstep]], [edgesPresent[tstep]], h_nodes, h_edges, c_nodes, c_edges)
+        loss_obs = Gaussian2DLikelihood(out_obs, nodes[tstep+1].view(1, numNodes, 2), [nodesPresent[tstep+1]])
 
     # Initialize the return data structures
     ret_nodes = Variable(torch.zeros(args.obs_length + args.pred_length, numNodes, 2), volatile=True).cuda()
@@ -158,7 +162,8 @@ def sample(nodes, edges, nodesPresent, edgesPresent, args, net):
     # Propagate the predicted length of trajectory (sampling from previous prediction)
     for tstep in range(args.obs_length-1, args.pred_length + args.obs_length-1):
         # TODO Not keeping track of nodes leaving the frame (or new nodes entering the frame, which I don't think we can do anyway)
-        outputs, h_nodes, h_edges = net(ret_nodes[tstep], ret_edges[tstep], [nodesPresent[args.obs_length-1]], [edgesPresent[args.obs_length-1]], h_nodes, h_edges)
+        outputs, h_nodes, h_edges, c_nodes, c_edges = net(ret_nodes[tstep].view(1, numNodes, 2), ret_edges[tstep].view(1, numNodes*numNodes, 2),
+                                                          [nodesPresent[args.obs_length-1]], [edgesPresent[args.obs_length-1]], h_nodes, h_edges, c_nodes, c_edges)
 
         # Sample from o
         # mux, ... are tensors of shape 1 x numNodes
