@@ -8,6 +8,38 @@ Date : 3rd April 2017
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle
+from graphviz import Digraph
+from torch.autograd import Variable
+
+
+def make_dot(var):
+    '''
+    Visualization of the computation graph
+    Taken from : https://github.com/szagoruyko/functional-zoo/blob/master/visualize.py
+    '''
+    node_attr = dict(style='filled',
+                     shape='box',
+                     align='left',
+                     fontsize='12',
+                     ranksep='0.1',
+                     height='0.2')
+    dot = Digraph(node_attr=node_attr, graph_attr=dict(size="12,12"))
+    seen = set()
+
+    def add_nodes(var):
+        if var not in seen:
+            if isinstance(var, Variable):
+                value = '('+(', ').join(['%d' % v for v in var.size()])+')'
+                dot.node(str(id(var)), str(value), fillcolor='lightblue')
+            else:
+                dot.node(str(id(var)), str(type(var).__name__))
+            seen.add(var)
+            if hasattr(var, 'previous_functions'):
+                for u in var.previous_functions:
+                    dot.edge(str(id(u[0])), str(id(var)))
+                    add_nodes(u[0])
+    add_nodes(var.creator)
+    return dot
 
 
 def plot_trajectories(true_trajs, pred_trajs, nodesPresent, obs_length, name, withBackground=False):
@@ -36,19 +68,19 @@ def plot_trajectories(true_trajs, pred_trajs, nodesPresent, obs_length, name, wi
     plt.figure()
 
     # Load the background
-    im = plt.imread('plot/background.png')
-    if withBackground:
-        implot = plt.imshow(im)
+    # im = plt.imread('plot/background.png')
+    # if withBackground:
+    #    implot = plt.imshow(im)
 
-    width_true = im.shape[0]
-    height_true = im.shape[1]
+    # width_true = im.shape[0]
+    # height_true = im.shape[1]
 
-    if withBackground:
-        width = width_true
-        height = height_true
-    else:
-        width = 1
-        height = 1
+    # if withBackground:
+    #    width = width_true
+    #    height = height_true
+    # else:
+    width = 1
+    height = 1
 
     traj_data = {}
     for tstep in range(traj_length):

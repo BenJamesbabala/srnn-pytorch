@@ -128,8 +128,8 @@ class ST_GRAPH():
         numNodes = len(nodes.keys())
         list_of_nodes = {}
 
-        retNodes = np.zeros((self.seq_length, numNodes, 1, 2))
-        retEdges = np.zeros((self.seq_length, numNodes, numNodes, 1, 2))  # Diagonal contains temporal edges
+        retNodes = np.zeros((self.seq_length, numNodes, 2))
+        retEdges = np.zeros((self.seq_length, numNodes*numNodes, 2))  # Diagonal contains temporal edges
         retNodePresent = [[] for c in xrange(self.seq_length)]
         retEdgePresent = [[] for c in xrange(self.seq_length)]
 
@@ -139,7 +139,7 @@ class ST_GRAPH():
             for framenum in range(self.seq_length):
                 if framenum in pos_list:
                     retNodePresent[framenum].append(i)
-                    retNodes[framenum, i, 0, :] = list(pos_list[framenum])
+                    retNodes[framenum, i, :] = list(pos_list[framenum])
 
         for ped, ped_other in edges.keys():
             i, j = list_of_nodes[ped], list_of_nodes[ped_other]
@@ -150,7 +150,7 @@ class ST_GRAPH():
                 for framenum in range(self.seq_length):
                     if framenum in edge.edge_pos_list:
                         retEdgePresent[framenum].append((i, j))
-                        retEdges[framenum, i, j, 0, :] = getVector(edge.edge_pos_list[framenum])
+                        retEdges[framenum, i*(numNodes) + j, :] = getVector(edge.edge_pos_list[framenum])
             else:
                 # Spatial edge
                 for framenum in range(self.seq_length):
@@ -158,8 +158,8 @@ class ST_GRAPH():
                         retEdgePresent[framenum].append((i, j))
                         retEdgePresent[framenum].append((j, i))
                         # the position returned is a tuple of tuples
-                        retEdges[framenum, i, j, 0, :] = getVector(edge.edge_pos_list[framenum])
-                        retEdges[framenum, j, i, 0, :] = -retEdges[framenum, i, j, 0, :]
+                        retEdges[framenum, i*(numNodes) + j, :] = getVector(edge.edge_pos_list[framenum])
+                        retEdges[framenum, j*(numNodes) + i, :] = -retEdges[framenum, i*(numNodes) + j, :]
 
         return retNodes, retEdges, retNodePresent, retEdgePresent
 
