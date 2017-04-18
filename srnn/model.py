@@ -118,6 +118,7 @@ class SRNN(nn.Module):
             self.seq_length = 1
         else:
             self.seq_length = args.seq_length
+
         self.human_node_rnn_size = args.human_node_rnn_size
         self.human_human_edge_rnn_size = args.human_human_edge_rnn_size
         self.output_size = args.human_node_output_size
@@ -177,6 +178,7 @@ class SRNN(nn.Module):
             edgeIDs = edgesPresent[framenum]
             temporal_edges = [x for x in edgeIDs if x[0] == x[1]]
             spatial_edges = [x for x in edgeIDs if x[0] != x[1]]
+            edges_current = edges[framenum]
 
             hidden_states_nodes_from_edges_temporal = Variable(torch.zeros(numNodes, self.human_human_edge_rnn_size).cuda())
             hidden_states_nodes_from_edges_spatial = Variable(torch.zeros(numNodes, self.human_human_edge_rnn_size).cuda())
@@ -188,7 +190,7 @@ class SRNN(nn.Module):
                     list_of_temporal_edges = Variable(torch.LongTensor([x[0]*numNodes + x[0] for x in edgeIDs if x[0] == x[1]]).cuda())
                     list_of_temporal_nodes = torch.LongTensor([x[0] for x in edgeIDs if x[0] == x[1]]).cuda()
 
-                    edges_temporal_start_end = torch.index_select(edges[framenum], 0, list_of_temporal_edges)
+                    edges_temporal_start_end = torch.index_select(edges_current, 0, list_of_temporal_edges)
                     hidden_temporal_start_end = torch.index_select(hidden_states_edge_RNNs, 0, list_of_temporal_edges)
                     cell_temporal_start_end = torch.index_select(cell_states_edge_RNNs, 0, list_of_temporal_edges)
 
@@ -202,10 +204,10 @@ class SRNN(nn.Module):
 
                 if len(spatial_edges) != 0:
 
-                    list_of_spatial_edges = Variable(torch.LongTensor([x[0]*(numNodes) + x[1] for x in edgeIDs if x[0] != x[1]]).cuda())
+                    list_of_spatial_edges = Variable(torch.LongTensor([x[0]*numNodes + x[1] for x in edgeIDs if x[0] != x[1]]).cuda())
                     list_of_spatial_nodes = np.array([x[0] for x in edgeIDs if x[0] != x[1]])
 
-                    edges_spatial_start_end = torch.index_select(edges[framenum], 0, list_of_spatial_edges)
+                    edges_spatial_start_end = torch.index_select(edges_current, 0, list_of_spatial_edges)
                     hidden_spatial_start_end = torch.index_select(hidden_states_edge_RNNs, 0, list_of_spatial_edges)
                     cell_spatial_start_end = torch.index_select(cell_states_edge_RNNs, 0, list_of_spatial_edges)
 

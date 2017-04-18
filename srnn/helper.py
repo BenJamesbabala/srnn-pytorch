@@ -25,13 +25,15 @@ def getCoef(outputs):
     return mux, muy, sx, sy, corr
 
 
-def sample_gaussian_2d(mux, muy, sx, sy, corr):
+def sample_gaussian_2d(mux, muy, sx, sy, corr, nodesPresent):
     '''
     Parameters
     ==========
 
     mux, muy, sx, sy, corr : a tensor of shape 1 x numNodes
     Contains x-means, y-means, x-stds, y-stds and correlation
+
+    nodesPresent : a list of nodeIDs present in the frame
 
     Returns
     =======
@@ -46,6 +48,8 @@ def sample_gaussian_2d(mux, muy, sx, sy, corr):
     next_x = torch.zeros(numNodes)
     next_y = torch.zeros(numNodes)
     for node in range(numNodes):
+        if node not in nodesPresent:
+            continue
         mean = [o_mux[node], o_muy[node]]
         cov = [[o_sx[node]*o_sx[node], o_corr[node]*o_sx[node]*o_sy[node]], [o_corr[node]*o_sx[node]*o_sy[node], o_sy[node]*o_sy[node]]]
 

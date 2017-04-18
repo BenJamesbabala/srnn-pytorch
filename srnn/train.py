@@ -26,7 +26,7 @@ def main():
     # RNN size
     parser.add_argument('--human_node_rnn_size', type=int, default=128,
                         help='Size of Human Node RNN hidden state')
-    parser.add_argument('--human_human_edge_rnn_size', type=int, default=128,
+    parser.add_argument('--human_human_edge_rnn_size', type=int, default=64,
                         help='Size of Human Human Edge RNN hidden state')
 
     # Input and output size
@@ -52,7 +52,7 @@ def main():
                         help='Batch size')
 
     # Number of epochs
-    parser.add_argument('--num_epochs', type=int, default=100,
+    parser.add_argument('--num_epochs', type=int, default=500,
                         help='number of epochs')
     # Frequency at which the model should be saved parameter
     parser.add_argument('--save_every', type=int, default=400,
@@ -62,7 +62,7 @@ def main():
     parser.add_argument('--grad_clip', type=float, default=1.,
                         help='clip gradients at this value')
     # Lambda regularization parameter (L2)
-    parser.add_argument('--lambda_param', type=float, default=0.001,
+    parser.add_argument('--lambda_param', type=float, default=0.0005,
                         help='L2 regularization parameter')
 
     # Learning rate parameter
@@ -81,9 +81,9 @@ def main():
 
 
 def train(args):
-    datasets = range(1)
+    datasets = range(4)
     # Remove the leave out dataset from the datasets
-    # datasets.remove(args.leaveDataset)
+    datasets.remove(args.leaveDataset)
 
     # Construct the DataLoader object
     dataloader = DataLoader(args.batch_size, args.seq_length + 1, datasets, forcePreProcess=True)
@@ -101,13 +101,16 @@ def train(args):
     net.cuda()
 
     # optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
-    # optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate)
+    optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
     learning_rate = args.learning_rate
     print 'Training begin'
     # Training
     for epoch in range(args.num_epochs):
-        optimizer = torch.optim.RMSprop(net.parameters(), lr=learning_rate)
+        # optimizer = torch.optim.RMSprop(net.parameters(), lr=learning_rate)
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = learning_rate
         learning_rate *= args.decay_rate
+
         dataloader.reset_batch_pointer()
 
         for batch in range(dataloader.num_batches):
