@@ -34,13 +34,18 @@ def getMagnitudeAndDirection(*args):
         pos_i = args[0]
         pos_j = args[1]
 
-        vector = np.array(pos_i) - np.array(pos_j)
-        magnitude = np.linalg.norm(vector)
-        if abs(magnitude) > 1e-4:
+        ret = torch.zeros(3)
+        vector = pos_i - pos_j
+        magnitude = torch.norm(vector)
+        if torch.abs(magnitude) > 1e-4:
             direction = vector / magnitude
         else:
             direction = vector
-        return [magnitude] + direction.tolist()
+
+        ret[0] = magnitude
+        ret[1:3] = direction
+        return ret
+
     else:
         raise NotImplementedError('getMagnitudeAndDirection: Function signature incorrect')
 
