@@ -92,13 +92,13 @@ def compute_edges(nodes, tstep, edgesPresent):
             pos_a = nodes[tstep - 1, nodeID_a, :]
             pos_b = nodes[tstep, nodeID_b, :]
 
-            edges[nodeID_a * numNodes + nodeID_b, :] = pos_b - pos_a
+            edges[nodeID_a * numNodes + nodeID_b, :] = pos_a - pos_b
         else:
             # Spatial edge
             pos_a = nodes[tstep, nodeID_a, :]
             pos_b = nodes[tstep, nodeID_b, :]
 
-            edges[nodeID_a * numNodes + nodeID_b, :] = pos_b - pos_a
+            edges[nodeID_a * numNodes + nodeID_b, :] = pos_a - pos_b
 
     return edges
 
