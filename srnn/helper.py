@@ -16,6 +16,35 @@ def getVector(pos_list):
     return np.array(pos_i) - np.array(pos_j)
 
 
+def getMagnitudeAndDirection(*args):
+    if len(args) == 1:
+        pos_list = args[0]
+        pos_i = pos_list[0]
+        pos_j = pos_list[1]
+
+        vector = np.array(pos_i) - np.array(pos_j)
+        magnitude = np.linalg.norm(vector)
+        if abs(magnitude) > 1e-4:
+            direction = vector / magnitude
+        else:
+            direction = vector
+        return [magnitude] + direction.tolist()
+
+    elif len(args) == 2:
+        pos_i = args[0]
+        pos_j = args[1]
+
+        vector = np.array(pos_i) - np.array(pos_j)
+        magnitude = np.linalg.norm(vector)
+        if abs(magnitude) > 1e-4:
+            direction = vector / magnitude
+        else:
+            direction = vector
+        return [magnitude] + direction.tolist()
+    else:
+        raise NotImplementedError('getMagnitudeAndDirection: Function signature incorrect')
+
+
 def getCoef(outputs):
     mux, muy, sx, sy, corr = outputs[:, :, 0], outputs[:, :, 1], outputs[:, :, 2], outputs[:, :, 3], outputs[:, :, 4]
 
@@ -82,7 +111,7 @@ def compute_edges(nodes, tstep, edgesPresent):
     Contains vectors representing the edges
     '''
     numNodes = nodes.size()[1]
-    edges = (torch.zeros(numNodes * numNodes, 2)).cuda()
+    edges = (torch.zeros(numNodes * numNodes, 3)).cuda()
     for edgeID in edgesPresent:
         nodeID_a = edgeID[0]
         nodeID_b = edgeID[1]
@@ -92,13 +121,15 @@ def compute_edges(nodes, tstep, edgesPresent):
             pos_a = nodes[tstep - 1, nodeID_a, :]
             pos_b = nodes[tstep, nodeID_b, :]
 
-            edges[nodeID_a * numNodes + nodeID_b, :] = pos_b - pos_a
+            # edges[nodeID_a * numNodes + nodeID_b, :] = pos_a - pos_b
+            edges[nodeID_a * numNodes + nodeID_b, :] = getMagnitudeAndDirection(pos_a, pos_b)
         else:
             # Spatial edge
             pos_a = nodes[tstep, nodeID_a, :]
             pos_b = nodes[tstep, nodeID_b, :]
 
-            edges[nodeID_a * numNodes + nodeID_b, :] = pos_b - pos_a
+            # edges[nodeID_a * numNodes + nodeID_b, :] = pos_a - pos_b
+            edges[nodeID_a * numNodes + nodeID_b, :] = getMagnitudeAndDirection(pos_a, pos_b)
 
     return edges
 

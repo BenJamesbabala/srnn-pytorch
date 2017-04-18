@@ -217,6 +217,7 @@ class SRNN(nn.Module):
                     hidden_states_edge_RNNs[list_of_spatial_edges.data] = h_spatial
                     cell_states_edge_RNNs[list_of_spatial_edges.data] = c_spatial
 
+                    # TODO : Insert attention model here
                     for node in range(numNodes):
                         l = torch.LongTensor(np.where(list_of_spatial_nodes == node)[0]).cuda()
                         if torch.numel(l) == 0:
