@@ -128,8 +128,8 @@ def train(args):
     net = SRNN(args)
     net.cuda()
 
-    optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
-    # optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
+    # optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
+    optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
     learning_rate = args.learning_rate
     print 'Training begin'
     # Training
@@ -138,8 +138,8 @@ def train(args):
         for param_group in optimizer.param_groups:
             param_group['lr'] = learning_rate
 
-        # learning_rate *= args.decay_rate
-        learning_rate /= np.sqrt(epoch + 1)
+        learning_rate *= args.decay_rate
+        # learning_rate /= np.sqrt(epoch + 1)
 
         dataloader.reset_batch_pointer()
 
