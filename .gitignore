@@ -18,3 +18,4 @@ debug.py
 *.pdf
 debug*
 tests/
+save_*

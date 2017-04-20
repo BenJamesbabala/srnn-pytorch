@@ -27,7 +27,7 @@ def main():
     # RNN size
     parser.add_argument('--human_node_rnn_size', type=int, default=128,
                         help='Size of Human Node RNN hidden state')
-    parser.add_argument('--human_human_edge_rnn_size', type=int, default=64,
+    parser.add_argument('--human_human_edge_rnn_size', type=int, default=128,
                         help='Size of Human Human Edge RNN hidden state')
 
     # Input and output size
@@ -53,7 +53,7 @@ def main():
                         help='Batch size')
 
     # Number of epochs
-    parser.add_argument('--num_epochs', type=int, default=50,
+    parser.add_argument('--num_epochs', type=int, default=200,
                         help='number of epochs')
     # Frequency at which the model should be saved parameter
     parser.add_argument('--save_every', type=int, default=400,
@@ -77,7 +77,19 @@ def main():
     parser.add_argument('--leaveDataset', type=int, default=3,
                         help='The dataset index to be left out in training')
 
+    # Experiments
+    parser.add_argument('--noedges', action='store_true')
+    parser.add_argument('--temporal', action='store_true')
+    parser.add_argument('--temporal_spatial', action='store_true')
+    parser.add_argument('--attention', action='store_true')
+
     args = parser.parse_args()
+
+    # Check experiment tags
+    if not (args.noedges or args.temporal or args.temporal_spatial or args.attention):
+        print 'Use one of the experiment tags to enforce model'
+        return
+
     train(args)
 
 
@@ -92,11 +104,26 @@ def train(args):
     # Construct the ST-graph object
     stgraph = ST_GRAPH(args.batch_size, args.seq_length + 1)
 
-    with open(os.path.join('save', 'config.pkl'), 'wb') as f:
+    # Save directory
+    save_directory = 'save'
+    if args.noedges:
+        print 'No edge RNNs used'
+        save_directory = 'save_noedges'
+    elif args.temporal:
+        print 'Only temporal edge RNNs used'
+        save_directory = 'save_temporal'
+    elif args.temporal_spatial:
+        print 'Both temporal and spatial edge RNNs used'
+        save_directory = 'save_temporal_spatial'
+    else:
+        print 'Both temporal and spatial edge RNNs used with attention'
+        save_directory = 'save_attention'
+
+    with open(os.path.join(save_directory, 'config.pkl'), 'wb') as f:
         pickle.dump(args, f)
 
     def checkpoint_path(x):
-        return os.path.join('save', 'srnn_model_'+str(x)+'.tar')
+        return os.path.join(save_directory, 'srnn_model_'+str(x)+'.tar')
 
     net = SRNN(args)
     net.cuda()

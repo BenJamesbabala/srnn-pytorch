@@ -104,6 +104,25 @@ class HumanHumanEdgeRNN(nn.Module):
         return h_new, c_new
 
 
+class EdgeAttention(nn.Module):
+    def __init__(self, args, infer=False):
+        super(EdgeAttention, self).__init__()
+
+        self.args = args
+        self.infer = infer
+
+        self.human_human_edge_rnn_size = args.human_human_edge_rnn_size
+
+        self.sm = nn.Softmax()
+
+    def forward(self, h_node, h_edges):
+        attn = torch.bmm(h_edges, h_node).squeeze(2)
+        attn = self.sm(attn)
+        attn3 = attn.view(attn.size(0), 1, attn.size(1))
+        weighted_h = torch.bmm(attn3, h_edges).squeeze(1)
+        return weighted_h
+
+
 class SRNN(nn.Module):
     '''
     Class representing the SRNN model
@@ -127,6 +146,9 @@ class SRNN(nn.Module):
         self.humanNodeRNN = HumanNodeRNN(args, infer)
         self.humanhumanEdgeRNN_spatial = HumanHumanEdgeRNN(args, infer)
         self.humanhumanEdgeRNN_temporal = HumanHumanEdgeRNN(args, infer)
+
+        # Initialize attention module
+        self.attn = EdgeAttention(args, infer)
 
         # Initialize the weights of the Node and Edge RNNs
         self.humanNodeRNN.init_weights()
@@ -183,7 +205,7 @@ class SRNN(nn.Module):
             hidden_states_nodes_from_edges_temporal = Variable(torch.zeros(numNodes, self.human_human_edge_rnn_size).cuda())
             hidden_states_nodes_from_edges_spatial = Variable(torch.zeros(numNodes, self.human_human_edge_rnn_size).cuda())
 
-            if len(edgeIDs) != 0:
+            if len(edgeIDs) != 0 and (not self.args.noedges):
 
                 if len(temporal_edges) != 0:
 
@@ -202,7 +224,7 @@ class SRNN(nn.Module):
 
                     hidden_states_nodes_from_edges_temporal[list_of_temporal_nodes] = h_temporal
 
-                if len(spatial_edges) != 0:
+                if len(spatial_edges) != 0 and (not self.args.temporal):
 
                     list_of_spatial_edges = Variable(torch.LongTensor([x[0]*numNodes + x[1] for x in edgeIDs if x[0] != x[1]]).cuda())
                     list_of_spatial_nodes = np.array([x[0] for x in edgeIDs if x[0] != x[1]])
@@ -217,12 +239,28 @@ class SRNN(nn.Module):
                     hidden_states_edge_RNNs[list_of_spatial_edges.data] = h_spatial
                     cell_states_edge_RNNs[list_of_spatial_edges.data] = c_spatial
 
-                    # TODO : Insert attention model here
-                    for node in range(numNodes):
-                        l = torch.LongTensor(np.where(list_of_spatial_nodes == node)[0]).cuda()
-                        if torch.numel(l) == 0:
-                            continue
-                        hidden_states_nodes_from_edges_spatial[node] = torch.sum(h_spatial[l], 0)
+                    if self.args.temporal_spatial:
+                        for node in range(numNodes):
+                            l = torch.LongTensor(np.where(list_of_spatial_nodes == node)[0]).cuda()
+                            if torch.numel(l) == 0:
+                                continue
+                            hidden_states_nodes_from_edges_spatial[node] = torch.sum(h_spatial[l], 0)
+
+                    else:
+                        for node in range(numNodes):
+                            l = torch.LongTensor(np.where(list_of_spatial_nodes == node)[0]).cuda()
+                            if torch.numel(l) == 0:
+                                continue
+                            ind = Variable(torch.LongTensor([node]).cuda())
+                            h_node = torch.index_select(hidden_states_node_RNNs, 0, ind)
+                            hidden_attn_weighted = self.attn(h_node.view(1, -1, 1),
+                                                             h_spatial[l].view(1, torch.numel(l), -1))
+
+                            # association = torch.mv(h_spatial[l], hidden_states_node_RNNs[node].clone())
+                            # probs = torch.nn.functional.softmax(association)
+                            # hidden_attn_weighted = torch.mv(torch.t(h_spatial[l]), probs)
+
+                            hidden_states_nodes_from_edges_spatial[node] = hidden_attn_weighted
 
             nodeIDs = nodesPresent[framenum]
 
