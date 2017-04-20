@@ -16,6 +16,40 @@ def getVector(pos_list):
     return np.array(pos_i) - np.array(pos_j)
 
 
+def getMagnitudeAndDirection(*args):
+    if len(args) == 1:
+        pos_list = args[0]
+        pos_i = pos_list[0]
+        pos_j = pos_list[1]
+
+        vector = np.array(pos_i) - np.array(pos_j)
+        magnitude = np.linalg.norm(vector)
+        if abs(magnitude) > 1e-4:
+            direction = vector / magnitude
+        else:
+            direction = vector
+        return [magnitude] + direction.tolist()
+
+    elif len(args) == 2:
+        pos_i = args[0]
+        pos_j = args[1]
+
+        ret = torch.zeros(3)
+        vector = pos_i - pos_j
+        magnitude = torch.norm(vector)
+        if torch.abs(magnitude) > 1e-4:
+            direction = vector / magnitude
+        else:
+            direction = vector
+
+        ret[0] = magnitude
+        ret[1:3] = direction
+        return ret
+
+    else:
+        raise NotImplementedError('getMagnitudeAndDirection: Function signature incorrect')
+
+
 def getCoef(outputs):
     mux, muy, sx, sy, corr = outputs[:, :, 0], outputs[:, :, 1], outputs[:, :, 2], outputs[:, :, 3], outputs[:, :, 4]
 
@@ -25,13 +59,15 @@ def getCoef(outputs):
     return mux, muy, sx, sy, corr
 
 
-def sample_gaussian_2d(mux, muy, sx, sy, corr):
+def sample_gaussian_2d(mux, muy, sx, sy, corr, nodesPresent):
     '''
     Parameters
     ==========
 
     mux, muy, sx, sy, corr : a tensor of shape 1 x numNodes
     Contains x-means, y-means, x-stds, y-stds and correlation
+
+    nodesPresent : a list of nodeIDs present in the frame
 
     Returns
     =======
@@ -46,6 +82,8 @@ def sample_gaussian_2d(mux, muy, sx, sy, corr):
     next_x = torch.zeros(numNodes)
     next_y = torch.zeros(numNodes)
     for node in range(numNodes):
+        if node not in nodesPresent:
+            continue
         mean = [o_mux[node], o_muy[node]]
         cov = [[o_sx[node]*o_sx[node], o_corr[node]*o_sx[node]*o_sy[node]], [o_corr[node]*o_sx[node]*o_sy[node], o_sy[node]*o_sy[node]]]
 
@@ -78,7 +116,7 @@ def compute_edges(nodes, tstep, edgesPresent):
     Contains vectors representing the edges
     '''
     numNodes = nodes.size()[1]
-    edges = (torch.zeros(numNodes * numNodes, 2)).cuda()
+    edges = (torch.zeros(numNodes * numNodes, 3)).cuda()
     for edgeID in edgesPresent:
         nodeID_a = edgeID[0]
         nodeID_b = edgeID[1]
@@ -88,13 +126,15 @@ def compute_edges(nodes, tstep, edgesPresent):
             pos_a = nodes[tstep - 1, nodeID_a, :]
             pos_b = nodes[tstep, nodeID_b, :]
 
-            edges[nodeID_a * numNodes + nodeID_b, :] = pos_b - pos_a
+            # edges[nodeID_a * numNodes + nodeID_b, :] = pos_a - pos_b
+            edges[nodeID_a * numNodes + nodeID_b, :] = getMagnitudeAndDirection(pos_a, pos_b)
         else:
             # Spatial edge
             pos_a = nodes[tstep, nodeID_a, :]
             pos_b = nodes[tstep, nodeID_b, :]
 
-            edges[nodeID_a * numNodes + nodeID_b, :] = pos_b - pos_a
+            # edges[nodeID_a * numNodes + nodeID_b, :] = pos_a - pos_b
+            edges[nodeID_a * numNodes + nodeID_b, :] = getMagnitudeAndDirection(pos_a, pos_b)
 
     return edges
 

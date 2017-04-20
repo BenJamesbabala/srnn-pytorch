@@ -10,6 +10,7 @@ import argparse
 import os
 import pickle
 import time
+import numpy as np
 
 import torch
 from torch.autograd import Variable
@@ -32,7 +33,7 @@ def main():
     # Input and output size
     parser.add_argument('--human_node_input_size', type=int, default=2,
                         help='Dimension of the node features')
-    parser.add_argument('--human_human_edge_input_size', type=int, default=2,
+    parser.add_argument('--human_human_edge_input_size', type=int, default=3,
                         help='Dimension of the edge features')
     parser.add_argument('--human_node_output_size', type=int, default=5,
                         help='Dimension of the node output')
@@ -52,7 +53,7 @@ def main():
                         help='Batch size')
 
     # Number of epochs
-    parser.add_argument('--num_epochs', type=int, default=50,
+    parser.add_argument('--num_epochs', type=int, default=200,
                         help='number of epochs')
     # Frequency at which the model should be saved parameter
     parser.add_argument('--save_every', type=int, default=200,
@@ -62,7 +63,7 @@ def main():
     parser.add_argument('--grad_clip', type=float, default=1.,
                         help='clip gradients at this value')
     # Lambda regularization parameter (L2)
-    parser.add_argument('--lambda_param', type=float, default=0.001,
+    parser.add_argument('--lambda_param', type=float, default=0.0005,
                         help='L2 regularization parameter')
 
     # Learning rate parameter
@@ -76,7 +77,19 @@ def main():
     parser.add_argument('--leaveDataset', type=int, default=3,
                         help='The dataset index to be left out in training')
 
+    # Experiments
+    parser.add_argument('--noedges', action='store_true')
+    parser.add_argument('--temporal', action='store_true')
+    parser.add_argument('--temporal_spatial', action='store_true')
+    parser.add_argument('--attention', action='store_true')
+
     args = parser.parse_args()
+
+    # Check experiment tags
+    if not (args.noedges or args.temporal or args.temporal_spatial or args.attention):
+        print 'Use one of the experiment tags to enforce model'
+        return
+
     train(args)
 
 
@@ -91,23 +104,43 @@ def train(args):
     # Construct the ST-graph object
     stgraph = ST_GRAPH(args.batch_size, args.seq_length + 1)
 
-    with open(os.path.join('save', 'config.pkl'), 'wb') as f:
+    # Save directory
+    save_directory = 'save'
+    if args.noedges:
+        print 'No edge RNNs used'
+        save_directory = 'save_noedges'
+    elif args.temporal:
+        print 'Only temporal edge RNNs used'
+        save_directory = 'save_temporal'
+    elif args.temporal_spatial:
+        print 'Both temporal and spatial edge RNNs used'
+        save_directory = 'save_temporal_spatial'
+    else:
+        print 'Both temporal and spatial edge RNNs used with attention'
+        save_directory = 'save_attention'
+
+    with open(os.path.join(save_directory, 'config.pkl'), 'wb') as f:
         pickle.dump(args, f)
 
     def checkpoint_path(x):
-        return os.path.join('save', 'srnn_model_'+str(x)+'.tar')
+        return os.path.join(save_directory, 'srnn_model_'+str(x)+'.tar')
 
     net = SRNN(args)
     net.cuda()
 
-    # optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
-    # optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate)
+    optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
+    # optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
     learning_rate = args.learning_rate
     print 'Training begin'
     # Training
     for epoch in range(args.num_epochs):
-        optimizer = torch.optim.RMSprop(net.parameters(), lr=learning_rate)
-        learning_rate *= args.decay_rate
+        # optimizer = torch.optim.RMSprop(net.parameters(), lr=learning_rate)
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = learning_rate
+
+        # learning_rate *= args.decay_rate
+        learning_rate /= np.sqrt(epoch + 1)
+
         dataloader.reset_batch_pointer()
 
         for batch in range(dataloader.num_batches):

@@ -25,9 +25,6 @@ from criterion import Gaussian2DLikelihood
 
 def main():
 
-    # Set random seed
-    np.random.seed(1)
-
     parser = argparse.ArgumentParser()
     # Observed length of the trajectory parameter
     parser.add_argument('--obs_length', type=int, default=4,
@@ -36,11 +33,11 @@ def main():
     parser.add_argument('--pred_length', type=int, default=4,
                         help='Predicted length of the trajectory')
     # Test dataset
-    parser.add_argument('--test_dataset', type=int, default=3,
+    parser.add_argument('--test_dataset', type=int, default=0,
                         help='Dataset to be tested on')
 
     # Model to be loaded
-    parser.add_argument('--iteration', type=float, default=1199.0,
+    parser.add_argument('--iteration', type=int, default=399,
                         help='Iteration of model to be loaded')
 
     # Parse the parameters
@@ -91,7 +88,7 @@ def main():
 
         obs_nodes, obs_edges, obs_nodesPresent, obs_edgesPresent = nodes[:sample_args.obs_length], edges[:sample_args.obs_length], nodesPresent[:sample_args.obs_length], edgesPresent[:sample_args.obs_length]
 
-        ret_nodes = sample(obs_nodes, obs_edges, obs_nodesPresent, obs_edgesPresent, sample_args, net)
+        ret_nodes = sample(obs_nodes, obs_edges, obs_nodesPresent, obs_edgesPresent, sample_args, net, nodes, edges, nodesPresent)
 
         total_error += get_mean_error(ret_nodes[sample_args.obs_length:].data, nodes[sample_args.obs_length:].data, nodesPresent[sample_args.obs_length:])
 
@@ -110,7 +107,7 @@ def main():
         pickle.dump(results, f)
 
 
-def sample(nodes, edges, nodesPresent, edgesPresent, args, net):
+def sample(nodes, edges, nodesPresent, edgesPresent, args, net, true_nodes, true_edges, true_nodesPresent):
     '''
     Parameters
     ==========
@@ -149,26 +146,34 @@ def sample(nodes, edges, nodesPresent, edgesPresent, args, net):
 
     # Propagate the observed length of the trajectory
     for tstep in range(args.obs_length-1):
-        out_obs, h_nodes, h_edges, c_nodes, c_edges = net(nodes[tstep].view(1, numNodes, 2), edges[tstep].view(1, numNodes*numNodes, 2), [nodesPresent[tstep]], [edgesPresent[tstep]], h_nodes, h_edges, c_nodes, c_edges)
+        out_obs, h_nodes, h_edges, c_nodes, c_edges = net(nodes[tstep].view(1, numNodes, 2), edges[tstep].view(1, numNodes*numNodes, 3), [nodesPresent[tstep]], [edgesPresent[tstep]], h_nodes, h_edges, c_nodes, c_edges)
         loss_obs = Gaussian2DLikelihood(out_obs, nodes[tstep+1].view(1, numNodes, 2), [nodesPresent[tstep+1]])
+        # print loss_obs.data
 
     # Initialize the return data structures
     ret_nodes = Variable(torch.zeros(args.obs_length + args.pred_length, numNodes, 2), volatile=True).cuda()
     ret_nodes[:args.obs_length, :, :] = nodes.clone()
 
-    ret_edges = Variable(torch.zeros((args.obs_length + args.pred_length), numNodes * numNodes, 2), volatile=True).cuda()
+    ret_edges = Variable(torch.zeros((args.obs_length + args.pred_length), numNodes * numNodes, 3), volatile=True).cuda()
     ret_edges[:args.obs_length, :, :] = edges.clone()
 
     # Propagate the predicted length of trajectory (sampling from previous prediction)
     for tstep in range(args.obs_length-1, args.pred_length + args.obs_length-1):
         # TODO Not keeping track of nodes leaving the frame (or new nodes entering the frame, which I don't think we can do anyway)
-        outputs, h_nodes, h_edges, c_nodes, c_edges = net(ret_nodes[tstep].view(1, numNodes, 2), ret_edges[tstep].view(1, numNodes*numNodes, 2),
+        outputs, h_nodes, h_edges, c_nodes, c_edges = net(ret_nodes[tstep].view(1, numNodes, 2), ret_edges[tstep].view(1, numNodes*numNodes, 3),
                                                           [nodesPresent[args.obs_length-1]], [edgesPresent[args.obs_length-1]], h_nodes, h_edges, c_nodes, c_edges)
+        loss_pred = Gaussian2DLikelihood(outputs, true_nodes[tstep + 1].view(1, numNodes, 2), [true_nodesPresent[tstep + 1]])
+        # print loss_pred.data
+        # raw_input()
 
         # Sample from o
         # mux, ... are tensors of shape 1 x numNodes
         mux, muy, sx, sy, corr = getCoef(outputs)
-        next_x, next_y = sample_gaussian_2d(mux.data, muy.data, sx.data, sy.data, corr.data)
+        next_x, next_y = sample_gaussian_2d(mux.data, muy.data, sx.data, sy.data, corr.data, nodesPresent[args.obs_length-1])
+        # print mux.data, muy.data, sx.data, sy.data
+        # print
+        # print next_x, next_y
+        # raw_input()
 
         ret_nodes[tstep + 1, :, 0] = next_x
         ret_nodes[tstep + 1, :, 1] = next_y
@@ -177,6 +182,9 @@ def sample(nodes, edges, nodesPresent, edgesPresent, args, net):
         # TODO Currently, assuming edges from the last observed time-step will stay for the entire prediction length
         ret_edges[tstep + 1, :, :] = compute_edges(ret_nodes.data, tstep + 1, edgesPresent[args.obs_length-1])
 
+        # print ret_nodes[tstep + 1]
+        # print ret_edges[tstep + 1]
+        # raw_input()
     return ret_nodes
 
 
