@@ -35,7 +35,10 @@ class HumanNodeRNN(nn.Module):
 
         self.cell = nn.LSTMCell(2*self.embedding_size, self.rnn_size)
 
-        self.decoder_linear = nn.Linear(self.rnn_size/2, self.output_size)
+        if self.args.attention:
+            self.decoder_linear = nn.Linear(self.rnn_size/2, self.output_size)
+        else:
+            self.decoder_linear = nn.Linear(self.rnn_size, self.output_size)
 
     def init_weights(self):
         self.encoder_linear.weight.data.normal_(0.1, 0.01)
@@ -63,7 +66,10 @@ class HumanNodeRNN(nn.Module):
         h_new, c_new = self.cell(concat_encoded, (h, c))
 
         # Decode hidden state
-        out = self.decoder_linear(h_new[:, :self.rnn_size/2])
+        if self.args.attention:
+            out = self.decoder_linear(h_new[:, :self.rnn_size/2])
+        else:
+            out = self.decoder_linear(h_new)
 
         return out, h_new, c_new
 
