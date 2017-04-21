@@ -33,7 +33,7 @@ def main():
     parser.add_argument('--pred_length', type=int, default=4,
                         help='Predicted length of the trajectory')
     # Test dataset
-    parser.add_argument('--test_dataset', type=int, default=0,
+    parser.add_argument('--test_dataset', type=int, default=3,
                         help='Dataset to be tested on')
 
     # Model to be loaded
