@@ -255,7 +255,6 @@ class SRNN(nn.Module):
                             h_node = torch.index_select(hidden_states_node_RNNs[:, -self.args.human_node_rnn_size/2:], 0, ind)
                             # hidden_attn_weighted = self.attn(h_node.view(1, -1, 1),
                             #                                 h_spatial[l].view(1, torch.numel(l), -1))
-
                             association = torch.mv(h_spatial[l], h_node.squeeze(0))
                             probs = torch.nn.functional.softmax(association)
                             hidden_attn_weighted = torch.mv(torch.t(h_spatial[l]), probs)
