@@ -129,7 +129,7 @@ def main():
     print 'Total mean error of the model is ', total_error / dataloader.num_batches
 
     print 'Saving results'
-    with open(os.path.join('save', 'results.pkl'), 'wb') as f:
+    with open(os.path.join(save_directory, 'results.pkl'), 'wb') as f:
         pickle.dump(results, f)
 
 
