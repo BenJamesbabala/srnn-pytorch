@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import pickle
 from graphviz import Digraph
 from torch.autograd import Variable
+import argparse
 
 
 def make_dot(var):
@@ -42,7 +43,7 @@ def make_dot(var):
     return dot
 
 
-def plot_trajectories(true_trajs, pred_trajs, nodesPresent, obs_length, name, withBackground=False):
+def plot_trajectories(true_trajs, pred_trajs, nodesPresent, obs_length, name, plot_directory, withBackground=False):
     '''
     Parameters
     ==========
@@ -122,7 +123,43 @@ def plot_trajectories(true_trajs, pred_trajs, nodesPresent, obs_length, name, wi
 
 
 def main():
-    f = open('save/results.pkl', 'rb')
+    parser = argparse.ArgumentParser()
+
+    # Experiments
+    parser.add_argument('--noedges', action='store_true')
+    parser.add_argument('--temporal', action='store_true')
+    parser.add_argument('--temporal_spatial', action='store_true')
+    parser.add_argument('--attention', action='store_true')
+
+    # Parse the parameters
+    args = parser.parse_args()
+
+    # Check experiment tags
+    if not (args.noedges or args.temporal or args.temporal_spatial or args.attention):
+        print 'Use one of the experiment tags to enforce model'
+        return
+
+    # Save directory
+    save_directory = 'save'
+    plot_directory = 'plot'
+    if args.noedges:
+        print 'No edge RNNs used'
+        save_directory = 'save_noedges'
+        plot_directory = 'plot_noedges'
+    elif args.temporal:
+        print 'Only temporal edge RNNs used'
+        save_directory = 'save_temporal'
+        plot_directory = 'plot_temporal'
+    elif args.temporal_spatial:
+        print 'Both temporal and spatial edge RNNs used'
+        save_directory = 'save_temporal_spatial'
+        plot_directory = 'plot_temporal_spatial'
+    else:
+        print 'Both temporal and spatial edge RNNs used with attention'
+        save_directory = 'save_attention'
+        plot_directory = 'plot_attention'
+
+    f = open(save_directory+'/results.pkl', 'rb')
     results = pickle.load(f)
 
     print "Enter 0 (or) 1 for without/with background"
@@ -131,7 +168,7 @@ def main():
     for i in range(len(results)):
         print i
         name = 'sequence' + str(i)
-        plot_trajectories(results[i][0], results[i][1], results[i][2], results[i][3], name, withBackground)
+        plot_trajectories(results[i][0], results[i][1], results[i][2], results[i][3], name, plot_directory, withBackground)
 
 
 if __name__ == '__main__':
