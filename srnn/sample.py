@@ -49,6 +49,11 @@ def main():
     # Parse the parameters
     sample_args = parser.parse_args()
 
+    # Check experiment tags
+    if not (sample_args.noedges or sample_args.temporal or sample_args.temporal_spatial or sample_args.attention):
+        print 'Use one of the experiment tags to enforce model'
+        return
+
     # Save directory
     save_directory = 'save'
     if sample_args.noedges:
