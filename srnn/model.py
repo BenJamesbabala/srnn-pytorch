@@ -35,7 +35,7 @@ class HumanNodeRNN(nn.Module):
 
         self.cell = nn.LSTMCell(2*self.embedding_size, self.rnn_size)
 
-        self.decoder_linear = nn.Linear(self.rnn_size, self.output_size)
+        self.decoder_linear = nn.Linear(self.rnn_size/2, self.output_size)
 
     def init_weights(self):
         self.encoder_linear.weight.data.normal_(0.1, 0.01)
@@ -63,7 +63,7 @@ class HumanNodeRNN(nn.Module):
         h_new, c_new = self.cell(concat_encoded, (h, c))
 
         # Decode hidden state
-        out = self.decoder_linear(h_new)
+        out = self.decoder_linear(h_new[:, :self.rnn_size/2])
 
         return out, h_new, c_new
 
@@ -252,13 +252,13 @@ class SRNN(nn.Module):
                             if torch.numel(l) == 0:
                                 continue
                             ind = Variable(torch.LongTensor([node]).cuda())
-                            h_node = torch.index_select(hidden_states_node_RNNs, 0, ind)
-                            hidden_attn_weighted = self.attn(h_node.view(1, -1, 1),
-                                                             h_spatial[l].view(1, torch.numel(l), -1))
+                            h_node = torch.index_select(hidden_states_node_RNNs[:, -self.args.human_node_rnn_size/2:], 0, ind)
+                            # hidden_attn_weighted = self.attn(h_node.view(1, -1, 1),
+                            #                                 h_spatial[l].view(1, torch.numel(l), -1))
 
-                            # association = torch.mv(h_spatial[l], hidden_states_node_RNNs[node].clone())
-                            # probs = torch.nn.functional.softmax(association)
-                            # hidden_attn_weighted = torch.mv(torch.t(h_spatial[l]), probs)
+                            association = torch.mv(h_spatial[l], h_node.squeeze(0))
+                            probs = torch.nn.functional.softmax(association)
+                            hidden_attn_weighted = torch.mv(torch.t(h_spatial[l]), probs)
 
                             hidden_states_nodes_from_edges_spatial[node] = hidden_attn_weighted
 
