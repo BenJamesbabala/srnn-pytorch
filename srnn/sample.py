@@ -37,20 +37,41 @@ def main():
                         help='Dataset to be tested on')
 
     # Model to be loaded
-    parser.add_argument('--iteration', type=int, default=399,
+    parser.add_argument('--iteration', type=int, default=3199,
                         help='Iteration of model to be loaded')
+
+    # Experiments
+    parser.add_argument('--noedges', action='store_true')
+    parser.add_argument('--temporal', action='store_true')
+    parser.add_argument('--temporal_spatial', action='store_true')
+    parser.add_argument('--attention', action='store_true')
 
     # Parse the parameters
     sample_args = parser.parse_args()
 
+    # Save directory
+    save_directory = 'save'
+    if sample_args.noedges:
+        print 'No edge RNNs used'
+        save_directory = 'save_noedges'
+    elif sample_args.temporal:
+        print 'Only temporal edge RNNs used'
+        save_directory = 'save_temporal'
+    elif sample_args.temporal_spatial:
+        print 'Both temporal and spatial edge RNNs used'
+        save_directory = 'save_temporal_spatial'
+    else:
+        print 'Both temporal and spatial edge RNNs used with attention'
+        save_directory = 'save_attention'
+
     # Define the path for the config file for saved args
-    with open(os.path.join('save', 'config.pkl'), 'rb') as f:
+    with open(os.path.join(save_directory, 'config.pkl'), 'rb') as f:
         saved_args = pickle.load(f)
 
     net = SRNN(saved_args, True)
     net.cuda()
 
-    checkpoint_path = os.path.join('save', 'srnn_model_'+str(sample_args.iteration)+'.tar')
+    checkpoint_path = os.path.join(save_directory, 'srnn_model_'+str(sample_args.iteration)+'.tar')
     if os.path.isfile(checkpoint_path):
         print 'Loading checkpoint'
         checkpoint = torch.load(checkpoint_path)
