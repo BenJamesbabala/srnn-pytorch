@@ -37,7 +37,7 @@ def getMagnitudeAndDirection(*args):
         ret = torch.zeros(3)
         vector = pos_i - pos_j
         magnitude = torch.norm(vector)
-        if torch.abs(magnitude) > 1e-4:
+        if abs(magnitude) > 1e-4:
             direction = vector / magnitude
         else:
             direction = vector
