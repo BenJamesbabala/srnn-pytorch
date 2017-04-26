@@ -25,9 +25,9 @@ def main():
     parser = argparse.ArgumentParser()
 
     # RNN size
-    parser.add_argument('--human_node_rnn_size', type=int, default=256,
+    parser.add_argument('--human_node_rnn_size', type=int, default=128,
                         help='Size of Human Node RNN hidden state')
-    parser.add_argument('--human_human_edge_rnn_size', type=int, default=128,
+    parser.add_argument('--human_human_edge_rnn_size', type=int, default=256,
                         help='Size of Human Human Edge RNN hidden state')
 
     # Input and output size
@@ -39,9 +39,9 @@ def main():
                         help='Dimension of the node output')
 
     # Embedding size
-    parser.add_argument('--human_node_embedding_size', type=int, default=128,
+    parser.add_argument('--human_node_embedding_size', type=int, default=64,
                         help='Embedding size of node features')
-    parser.add_argument('--human_human_edge_embedding_size', type=int, default=128,
+    parser.add_argument('--human_human_edge_embedding_size', type=int, default=64,
                         help='Embedding size of edge features')
 
     # Sequence length
@@ -53,7 +53,7 @@ def main():
                         help='Batch size')
 
     # Number of epochs
-    parser.add_argument('--num_epochs', type=int, default=50,
+    parser.add_argument('--num_epochs', type=int, default=200,
                         help='number of epochs')
     # Frequency at which the model should be saved parameter
     parser.add_argument('--save_every', type=int, default=200,
@@ -97,6 +97,7 @@ def train(args):
     datasets = range(4)
     # Remove the leave out dataset from the datasets
     datasets.remove(args.leaveDataset)
+    # datasets = [0]
 
     # Construct the DataLoader object
     dataloader = DataLoader(args.batch_size, args.seq_length + 1, datasets, forcePreProcess=True)
@@ -130,6 +131,7 @@ def train(args):
 
     # optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
     optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
+    # optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate)
     learning_rate = args.learning_rate
     print 'Training begin'
     # Training

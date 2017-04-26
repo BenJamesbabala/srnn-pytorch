@@ -139,7 +139,7 @@ def compute_edges(nodes, tstep, edgesPresent):
     return edges
 
 
-def get_mean_error(ret_nodes, nodes, nodesPresent):
+def get_mean_error(ret_nodes, nodes, assumedNodesPresent, trueNodesPresent):
     '''
     Parameters
     ==========
@@ -160,17 +160,22 @@ def get_mean_error(ret_nodes, nodes, nodesPresent):
     '''
     pred_length = ret_nodes.size()[0]
     error = torch.zeros(pred_length).cuda()
+    counter = 0
 
     for tstep in range(pred_length):
 
-        for nodeID in nodesPresent[tstep]:
+        for nodeID in assumedNodesPresent:
+
+            if nodeID not in trueNodesPresent[tstep]:
+                continue
 
             pred_pos = ret_nodes[tstep, nodeID, :]
             true_pos = nodes[tstep, nodeID, :]
 
             error[tstep] += torch.norm(pred_pos - true_pos, p=2)
+            counter += 1
 
-        if len(nodesPresent[tstep]) != 0:
-            error[tstep] = error[tstep] / len(nodesPresent[tstep])
+        if counter != 0:
+            error[tstep] = error[tstep] / counter
 
     return torch.mean(error)

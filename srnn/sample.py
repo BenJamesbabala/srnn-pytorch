@@ -20,7 +20,7 @@ from utils import DataLoader
 from st_graph import ST_GRAPH
 from model import SRNN
 from helper import getCoef, sample_gaussian_2d, compute_edges, get_mean_error
-from criterion import Gaussian2DLikelihood
+from criterion import Gaussian2DLikelihood, Gaussian2DLikelihoodInference
 
 
 def main():
@@ -116,7 +116,7 @@ def main():
 
         ret_nodes = sample(obs_nodes, obs_edges, obs_nodesPresent, obs_edgesPresent, sample_args, net, nodes, edges, nodesPresent)
 
-        total_error += get_mean_error(ret_nodes[sample_args.obs_length:].data, nodes[sample_args.obs_length:].data, nodesPresent[sample_args.obs_length:])
+        total_error += get_mean_error(ret_nodes[sample_args.obs_length:].data, nodes[sample_args.obs_length:].data, nodesPresent[sample_args.obs_length-1], nodesPresent[sample_args.obs_length:])
 
         end = time.time()
 
@@ -188,9 +188,8 @@ def sample(nodes, edges, nodesPresent, edgesPresent, args, net, true_nodes, true
         # TODO Not keeping track of nodes leaving the frame (or new nodes entering the frame, which I don't think we can do anyway)
         outputs, h_nodes, h_edges, c_nodes, c_edges = net(ret_nodes[tstep].view(1, numNodes, 2), ret_edges[tstep].view(1, numNodes*numNodes, 3),
                                                           [nodesPresent[args.obs_length-1]], [edgesPresent[args.obs_length-1]], h_nodes, h_edges, c_nodes, c_edges)
-        loss_pred = Gaussian2DLikelihood(outputs, true_nodes[tstep + 1].view(1, numNodes, 2), [true_nodesPresent[tstep + 1]])
+        loss_pred = Gaussian2DLikelihoodInference(outputs, true_nodes[tstep + 1].view(1, numNodes, 2), nodesPresent[args.obs_length-1], [true_nodesPresent[tstep + 1]])
         # print loss_pred.data
-        # raw_input()
 
         # Sample from o
         # mux, ... are tensors of shape 1 x numNodes
@@ -211,6 +210,8 @@ def sample(nodes, edges, nodesPresent, edgesPresent, args, net, true_nodes, true
         # print ret_nodes[tstep + 1]
         # print ret_edges[tstep + 1]
         # raw_input()
+    # print true_nodes, ret_nodes
+    # raw_input()
     return ret_nodes
 
 
