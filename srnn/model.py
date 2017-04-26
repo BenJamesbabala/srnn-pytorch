@@ -220,7 +220,10 @@ class SRNN(nn.Module):
             edges_current = edges[framenum]
 
             hidden_states_nodes_from_edges_temporal = Variable(torch.zeros(numNodes, self.human_human_edge_rnn_size).cuda())
-            hidden_states_nodes_from_edges_spatial = Variable(torch.zeros(numNodes, self.human_human_edge_rnn_size/2).cuda())
+            if self.args.attention:
+                hidden_states_nodes_from_edges_spatial = Variable(torch.zeros(numNodes, self.human_human_edge_rnn_size/2).cuda())
+            else:
+                hidden_states_nodes_from_edges_spatial = Variable(torch.zeros(numNodes, self.human_human_edge_rnn_size).cuda())
 
             if len(edgeIDs) != 0 and (not self.args.noedges):
 
