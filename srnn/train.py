@@ -53,7 +53,7 @@ def main():
                         help='Batch size')
 
     # Number of epochs
-    parser.add_argument('--num_epochs', type=int, default=200,
+    parser.add_argument('--num_epochs', type=int, default=50,
                         help='number of epochs')
     # Frequency at which the model should be saved parameter
     parser.add_argument('--save_every', type=int, default=200,
@@ -94,10 +94,10 @@ def main():
 
 
 def train(args):
-    datasets = range(4)
+    # datasets = range(4)
     # Remove the leave out dataset from the datasets
-    datasets.remove(args.leaveDataset)
-    # datasets = [0]
+    # datasets.remove(args.leaveDataset)
+    datasets = [0]
 
     # Construct the DataLoader object
     dataloader = DataLoader(args.batch_size, args.seq_length + 1, datasets, forcePreProcess=True)
