@@ -140,24 +140,24 @@ def main():
         return
 
     # Save directory
-    save_directory = 'save'
-    plot_directory = 'plot'
+    save_directory = 'save/'
+    plot_directory = 'plot/'
     if args.noedges:
         print 'No edge RNNs used'
-        save_directory = 'save_noedges'
-        plot_directory = 'plot_noedges'
+        save_directory += 'save_noedges'
+        plot_directory += 'plot_noedges'
     elif args.temporal:
         print 'Only temporal edge RNNs used'
-        save_directory = 'save_temporal'
-        plot_directory = 'plot_temporal'
+        save_directory += 'save_temporal'
+        plot_directory += 'plot_temporal'
     elif args.temporal_spatial:
         print 'Both temporal and spatial edge RNNs used'
-        save_directory = 'save_temporal_spatial'
-        plot_directory = 'plot_temporal_spatial'
+        save_directory += 'save_temporal_spatial'
+        plot_directory += 'plot_temporal_spatial'
     else:
         print 'Both temporal and spatial edge RNNs used with attention'
-        save_directory = 'save_attention'
-        plot_directory = 'plot_attention'
+        save_directory += 'save_attention'
+        plot_directory += 'plot_attention'
 
     f = open(save_directory+'/results.pkl', 'rb')
     results = pickle.load(f)

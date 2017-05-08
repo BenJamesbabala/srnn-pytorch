@@ -10,6 +10,7 @@ import torch.nn as nn
 from torch.autograd import Variable
 import torch
 import numpy as np
+import ipdb
 
 
 class HumanNodeRNN(nn.Module):
@@ -30,13 +31,20 @@ class HumanNodeRNN(nn.Module):
         self.encoder_linear = nn.Linear(self.input_size, self.embedding_size)
         self.encoder_relu = nn.ReLU()
 
-        if self.args.attention:
-            self.hidden_encoder_linear = nn.Linear((args.human_human_edge_rnn_size*3)/2, self.embedding_size)
-        else:
-            self.hidden_encoder_linear = nn.Linear(args.human_human_edge_rnn_size*2, self.embedding_size)
-        self.hidden_encoder_relu = nn.ReLU()
+        # self.hidden_temporal_encoder_linear = nn.Linear(args.human_human_edge_rnn_size, self.embedding_size)
+        # self.hidden_spatial_encoder_linear = nn.Linear(args.human_human_edge_rnn_size, self.embedding_size)
 
-        self.cell = nn.LSTMCell(2*self.embedding_size, self.rnn_size)
+        # self.hidden_encoder_relu = nn.ReLU()
+
+        if args.temporal:
+            # Only temporal edges
+            self.cell = nn.LSTMCell(2*self.embedding_size, self.rnn_size)
+        elif args.noedges:
+            # No edges at all
+            self.cell = nn.LSTMCell(self.embedding_size, self.rnn_size)
+        else:
+            # Both spatial and temporal edges
+            self.cell = nn.LSTMCell(3*self.embedding_size, self.rnn_size)
 
         self.decoder_linear = nn.Linear(self.rnn_size, self.output_size)
 
@@ -44,27 +52,43 @@ class HumanNodeRNN(nn.Module):
         self.encoder_linear.weight.data.normal_(0.1, 0.01)
         self.encoder_linear.bias.data.fill_(0)
 
-        self.hidden_encoder_linear.weight.data.normal_(0.1, 0.01)
-        self.hidden_encoder_linear.bias.data.fill_(0)
+        # self.hidden_temporal_encoder_linear.weight.data.normal_(0.1, 0.01)
+        # self.hidden_temporal_encoder_linear.bias.data.fill_(0)
+
+        # self.hidden_spatial_encoder_linear.weight.data.normal_(0.1, 0.01)
+        # self.hidden_spatial_encoder_linear.bias.data.fill_(0)
 
         self.decoder_linear.weight.data.normal_(0.1, 0.01)
         self.decoder_linear.bias.data.fill_(0)
 
-    def forward(self, pos, h_other, h, c):
+    def forward(self, pos, h_temporal_other, h_spatial_other, h, c):
         # Encode the input position
         encoded_input = self.encoder_linear(pos)
         encoded_input = self.encoder_relu(encoded_input)
 
-        # Encode the input hidden states
-        encoded_hidden = self.hidden_encoder_linear(h_other)
-        encoded_hidden = self.hidden_encoder_relu(encoded_hidden)
+        # Encode the input hidden temporal states
+        # encoded_hidden_temporal = self.hidden_temporal_encoder_linear(h_temporal_other)
+        # encoded_hidden_temporal = self.hidden_encoder_relu(encoded_hidden_temporal)
 
-        # Concat both the embeddings
-        concat_encoded = torch.cat((encoded_input, encoded_hidden), 1)
+        # Encode the input hidden spatial states
+        # encoded_hidden_spatial = self.hidden_spatial_encoder_linear(h_spatial_other)
+        # encoded_hidden_spatial = self.hidden_encoder_relu(encoded_hidden_spatial)
 
-        # Apply final encoder
-        # final_encoded = self.final_encoder_linear(concat_encoded)
-        # final_encoded = self.final_encoder_relu(final_encoded)
+        encoded_hidden_spatial = h_spatial_other
+        encoded_hidden_temporal = h_temporal_other
+
+        # print encoded_hidden_spatial
+        # raw_input()
+
+        if self.args.noedges:
+            # Only the encoded input
+            concat_encoded = encoded_input
+        elif self.args.temporal:
+            # Concat only the temporal embedding
+            concat_encoded = torch.cat((encoded_input, encoded_hidden_temporal), 1)
+        else:
+            # Concat both the embeddings
+            concat_encoded = torch.cat((encoded_input, encoded_hidden_temporal, encoded_hidden_spatial), 1)
 
         # One-step of LSTM
         h_new, c_new = self.cell(concat_encoded, (h, c))
@@ -92,9 +116,6 @@ class HumanHumanEdgeRNN(nn.Module):
         self.encoder_linear = nn.Linear(self.input_size, self.embedding_size)
         self.encoder_relu = nn.ReLU()
 
-        # self.final_encoder_linear = nn.Linear(self.embedding_size, self.embedding_size)
-        # self.final_encoder_relu = nn.ReLU()
-
         self.cell = nn.LSTMCell(self.embedding_size, self.rnn_size)
 
     def init_weights(self):
@@ -102,18 +123,11 @@ class HumanHumanEdgeRNN(nn.Module):
         self.encoder_linear.weight.data.normal_(0.1, 0.01)
         self.encoder_linear.bias.data.fill_(0)
 
-        # self.final_encoder_linear.weight.data.normal_(0.1, 0.01)
-        # self.final_encoder_linear.bias.data.fill_(0)
-
     def forward(self, inp, h, c):
 
         # Encode the input position
         encoded_input = self.encoder_linear(inp)
         encoded_input = self.encoder_relu(encoded_input)
-
-        # Final encoder
-        # encoded_input = self.final_encoder_linear(encoded_input)
-        # encoded_input = self.final_encoder_relu(encoded_input)
 
         # One-step of LSTM
         h_new, c_new = self.cell(encoded_input, (h, c))
@@ -129,15 +143,44 @@ class EdgeAttention(nn.Module):
         self.infer = infer
 
         self.human_human_edge_rnn_size = args.human_human_edge_rnn_size
+        self.human_node_rnn_size = args.human_node_rnn_size
 
-        self.sm = nn.Softmax()
+        self.node_layer = nn.Linear(self.human_node_rnn_size, self.human_human_edge_rnn_size, bias=False)
+        self.edge_layer = nn.Linear(self.human_human_edge_rnn_size, self.human_human_edge_rnn_size, bias=False)
+
+        self.nonlinearity = nn.Tanh()
+        self.general_weight_matrix = nn.Parameter(torch.Tensor(self.human_human_edge_rnn_size, self.human_human_edge_rnn_size))
+
+        self.general_weight_matrix.data.normal_(0.1, 0.01)
 
     def forward(self, h_node, h_edges):
-        attn = torch.bmm(h_edges, h_node).squeeze(2)
-        attn = self.sm(attn)
-        attn3 = attn.view(attn.size(0), 1, attn.size(1))
-        weighted_h = torch.bmm(attn3, h_edges).squeeze(1)
-        return weighted_h
+        '''
+        h_node : Hidden state of the node at (tstep -1). Of size 1 x human_node_rnn_size
+        h_edges : Hidden states of all spatial edges connected to the node at tstep. Of size n x human_human_edge_rnn_size
+        '''
+        num_edges = h_edges.size()[0]
+        # Compute attention
+        # Apply layers on top of edges and node
+        node_embed = self.node_layer(h_node).squeeze(0)
+        edges_embed = self.edge_layer(h_edges)
+
+        if self.args.attention_type == 'concat':
+            # Concat based attention
+            attn = node_embed.expand(num_edges, self.human_human_edge_rnn_size) + edges_embed
+            attn = self.nonlinearity(attn)
+            attn = torch.sum(attn, dim=1).squeeze(1)
+        elif self.args.attention_type == 'dot':
+            # Dot based attention
+            attn = torch.mv(edges_embed, node_embed)
+        else:
+            # General attention
+            attn = torch.mm(edges_embed, self.general_weight_matrix)
+            attn = torch.mv(attn, node_embed)
+
+        attn = torch.nn.functional.softmax(attn)
+        # Compute weighted value
+        weighted_value = torch.mv(torch.t(h_edges), attn)
+        return weighted_value, attn
 
 
 class SRNN(nn.Module):
@@ -213,6 +256,9 @@ class SRNN(nn.Module):
         # Initialize output array
         outputs = Variable(torch.zeros(self.seq_length * numNodes, self.output_size)).cuda()
 
+        # Data structure to store attention weights
+        attn_weights = [{} for _ in range(self.seq_length)]
+
         for framenum in range(self.seq_length):
             edgeIDs = edgesPresent[framenum]
             temporal_edges = [x for x in edgeIDs if x[0] == x[1]]
@@ -220,13 +266,12 @@ class SRNN(nn.Module):
             edges_current = edges[framenum]
 
             hidden_states_nodes_from_edges_temporal = Variable(torch.zeros(numNodes, self.human_human_edge_rnn_size).cuda())
-            if self.args.attention:
-                hidden_states_nodes_from_edges_spatial = Variable(torch.zeros(numNodes, self.human_human_edge_rnn_size/2).cuda())
-            else:
-                hidden_states_nodes_from_edges_spatial = Variable(torch.zeros(numNodes, self.human_human_edge_rnn_size).cuda())
+            hidden_states_nodes_from_edges_spatial = Variable(torch.zeros(numNodes, self.human_human_edge_rnn_size).cuda())
 
+            # Edges
             if len(edgeIDs) != 0 and (not self.args.noedges):
 
+                # Temporal Edges
                 if len(temporal_edges) != 0:
 
                     list_of_temporal_edges = Variable(torch.LongTensor([x[0]*numNodes + x[0] for x in edgeIDs if x[0] == x[1]]).cuda())
@@ -238,12 +283,14 @@ class SRNN(nn.Module):
 
                     h_temporal, c_temporal = self.humanhumanEdgeRNN_temporal(edges_temporal_start_end, hidden_temporal_start_end,
                                                                              cell_temporal_start_end)
+                    # ipdb.set_trace()
 
                     hidden_states_edge_RNNs[list_of_temporal_edges.data] = h_temporal
                     cell_states_edge_RNNs[list_of_temporal_edges.data] = c_temporal
 
                     hidden_states_nodes_from_edges_temporal[list_of_temporal_nodes] = h_temporal
 
+                # Spatial Edges
                 if len(spatial_edges) != 0 and (not self.args.temporal):
 
                     list_of_spatial_edges = Variable(torch.LongTensor([x[0]*numNodes + x[1] for x in edgeIDs if x[0] != x[1]]).cuda())
@@ -259,6 +306,7 @@ class SRNN(nn.Module):
                     hidden_states_edge_RNNs[list_of_spatial_edges.data] = h_spatial
                     cell_states_edge_RNNs[list_of_spatial_edges.data] = c_spatial
 
+                    # Sum Spatial
                     if self.args.temporal_spatial:
                         for node in range(numNodes):
                             l = torch.LongTensor(np.where(list_of_spatial_nodes == node)[0]).cuda()
@@ -266,23 +314,20 @@ class SRNN(nn.Module):
                                 continue
                             hidden_states_nodes_from_edges_spatial[node] = torch.sum(h_spatial[l], 0)
 
+                    # Attention
                     else:
                         for node in range(numNodes):
-                            l = Variable(torch.LongTensor(np.where(list_of_spatial_nodes == node)[0]).cuda())
-                            if torch.numel(l.data) == 0:
+                            l = torch.LongTensor(np.where(list_of_spatial_nodes == node)[0]).cuda()
+                            node_others = [x[1] for x in edgeIDs if x[0] == node and x[0] != x[1]]
+                            if torch.numel(l) == 0:
                                 continue
                             ind = Variable(torch.LongTensor([node]).cuda())
                             h_node = torch.index_select(hidden_states_node_RNNs, 0, ind)
-                            # hidden_attn_weighted = self.attn(h_node.view(1, -1, 1),
-                            #                                 h_spatial[l].view(1, torch.numel(l), -1))
-                            spatial_edges = torch.index_select(h_spatial, 0, l)
-                            key = spatial_edges[:, :self.human_human_edge_rnn_size/2]
-                            value = spatial_edges[:, self.human_human_edge_rnn_size/2:]
-                            association = torch.mv(key, h_node.squeeze(0))
-                            probs = torch.nn.functional.softmax(association)
-                            hidden_attn_weighted = torch.mv(torch.t(value), probs)
+                            hidden_attn_weighted, attn_w = self.attn(h_node, h_spatial[l])
+                            attn_weights[framenum][node] = (attn_w, node_others)
                             hidden_states_nodes_from_edges_spatial[node] = hidden_attn_weighted
 
+            # Nodes
             nodeIDs = nodesPresent[framenum]
 
             if len(nodeIDs) != 0:
@@ -294,11 +339,11 @@ class SRNN(nn.Module):
                 hidden_nodes_current = torch.index_select(hidden_states_node_RNNs, 0, list_of_nodes)
                 cell_nodes_current = torch.index_select(cell_states_node_RNNs, 0, list_of_nodes)
 
-                hidden_other_current = torch.cat((hidden_states_nodes_from_edges_temporal[list_of_nodes.data],
-                                                  hidden_states_nodes_from_edges_spatial[list_of_nodes.data]), 1)
+                h_temporal_other = hidden_states_nodes_from_edges_temporal[list_of_nodes.data]
+                h_spatial_other = hidden_states_nodes_from_edges_spatial[list_of_nodes.data]
 
-                outputs[framenum * numNodes + list_of_nodes.data], h_nodes, c_nodes = self.humanNodeRNN(nodes_current, hidden_other_current, hidden_nodes_current,
-                                                                                                        cell_nodes_current)
+                outputs[framenum * numNodes + list_of_nodes.data], h_nodes, c_nodes = self.humanNodeRNN(nodes_current, h_temporal_other, h_spatial_other, hidden_nodes_current, cell_nodes_current)
+
                 hidden_states_node_RNNs[list_of_nodes.data] = h_nodes
                 cell_states_node_RNNs[list_of_nodes.data] = c_nodes
 
@@ -307,4 +352,4 @@ class SRNN(nn.Module):
             for node in range(numNodes):
                 outputs_return[framenum, node, :] = outputs[framenum*numNodes + node, :]
 
-        return outputs_return, hidden_states_node_RNNs, hidden_states_edge_RNNs, cell_states_node_RNNs, cell_states_edge_RNNs
+        return outputs_return, hidden_states_node_RNNs, hidden_states_edge_RNNs, cell_states_node_RNNs, cell_states_edge_RNNs, attn_weights

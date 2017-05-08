@@ -30,7 +30,7 @@ def main():
     parser.add_argument('--obs_length', type=int, default=4,
                         help='Observed length of the trajectory')
     # Predicted length of the trajectory parameter
-    parser.add_argument('--pred_length', type=int, default=4,
+    parser.add_argument('--pred_length', type=int, default=8,
                         help='Predicted length of the trajectory')
     # Test dataset
     parser.add_argument('--test_dataset', type=int, default=3,
@@ -55,19 +55,19 @@ def main():
         return
 
     # Save directory
-    save_directory = 'save'
+    save_directory = 'save/'
     if sample_args.noedges:
         print 'No edge RNNs used'
-        save_directory = 'save_noedges'
+        save_directory += 'save_noedges'
     elif sample_args.temporal:
         print 'Only temporal edge RNNs used'
-        save_directory = 'save_temporal'
+        save_directory += 'save_temporal'
     elif sample_args.temporal_spatial:
         print 'Both temporal and spatial edge RNNs used'
-        save_directory = 'save_temporal_spatial'
+        save_directory += 'save_temporal_spatial'
     else:
         print 'Both temporal and spatial edge RNNs used with attention'
-        save_directory = 'save_attention'
+        save_directory += 'save_attention'
 
     # Define the path for the config file for saved args
     with open(os.path.join(save_directory, 'config.pkl'), 'rb') as f:
@@ -76,7 +76,8 @@ def main():
     net = SRNN(saved_args, True)
     net.cuda()
 
-    checkpoint_path = os.path.join(save_directory, 'srnn_model_'+str(sample_args.iteration)+'.tar')
+    # checkpoint_path = os.path.join(save_directory, 'srnn_model_'+str(sample_args.iteration)+'.tar')
+    checkpoint_path = os.path.join(save_directory, 'srnn_model.tar')
     if os.path.isfile(checkpoint_path):
         print 'Loading checkpoint'
         checkpoint = torch.load(checkpoint_path)
@@ -114,7 +115,7 @@ def main():
 
         obs_nodes, obs_edges, obs_nodesPresent, obs_edgesPresent = nodes[:sample_args.obs_length], edges[:sample_args.obs_length], nodesPresent[:sample_args.obs_length], edgesPresent[:sample_args.obs_length]
 
-        ret_nodes = sample(obs_nodes, obs_edges, obs_nodesPresent, obs_edgesPresent, sample_args, net, nodes, edges, nodesPresent)
+        ret_nodes, ret_attn = sample(obs_nodes, obs_edges, obs_nodesPresent, obs_edgesPresent, sample_args, net, nodes, edges, nodesPresent)
 
         total_error += get_mean_error(ret_nodes[sample_args.obs_length:].data, nodes[sample_args.obs_length:].data, nodesPresent[sample_args.obs_length-1], nodesPresent[sample_args.obs_length:])
 
@@ -122,7 +123,7 @@ def main():
 
         print 'Processed trajectory number : ', batch, 'out of', dataloader.num_batches, 'trajectories in time', end - start
 
-        results.append((nodes.data.cpu().numpy(), ret_nodes.data.cpu().numpy(), nodesPresent, sample_args.obs_length))
+        results.append((nodes.data.cpu().numpy(), ret_nodes.data.cpu().numpy(), nodesPresent, sample_args.obs_length, ret_attn))
 
         stgraph.reset()
 
@@ -172,7 +173,7 @@ def sample(nodes, edges, nodesPresent, edgesPresent, args, net, true_nodes, true
 
     # Propagate the observed length of the trajectory
     for tstep in range(args.obs_length-1):
-        out_obs, h_nodes, h_edges, c_nodes, c_edges = net(nodes[tstep].view(1, numNodes, 2), edges[tstep].view(1, numNodes*numNodes, 3), [nodesPresent[tstep]], [edgesPresent[tstep]], h_nodes, h_edges, c_nodes, c_edges)
+        out_obs, h_nodes, h_edges, c_nodes, c_edges, _ = net(nodes[tstep].view(1, numNodes, 2), edges[tstep].view(1, numNodes*numNodes, 3), [nodesPresent[tstep]], [edgesPresent[tstep]], h_nodes, h_edges, c_nodes, c_edges)
         loss_obs = Gaussian2DLikelihood(out_obs, nodes[tstep+1].view(1, numNodes, 2), [nodesPresent[tstep+1]])
         # print loss_obs.data
 
@@ -183,11 +184,13 @@ def sample(nodes, edges, nodesPresent, edgesPresent, args, net, true_nodes, true
     ret_edges = Variable(torch.zeros((args.obs_length + args.pred_length), numNodes * numNodes, 3), volatile=True).cuda()
     ret_edges[:args.obs_length, :, :] = edges.clone()
 
+    ret_attn = []
+
     # Propagate the predicted length of trajectory (sampling from previous prediction)
     for tstep in range(args.obs_length-1, args.pred_length + args.obs_length-1):
         # TODO Not keeping track of nodes leaving the frame (or new nodes entering the frame, which I don't think we can do anyway)
-        outputs, h_nodes, h_edges, c_nodes, c_edges = net(ret_nodes[tstep].view(1, numNodes, 2), ret_edges[tstep].view(1, numNodes*numNodes, 3),
-                                                          [nodesPresent[args.obs_length-1]], [edgesPresent[args.obs_length-1]], h_nodes, h_edges, c_nodes, c_edges)
+        outputs, h_nodes, h_edges, c_nodes, c_edges, attn_w = net(ret_nodes[tstep].view(1, numNodes, 2), ret_edges[tstep].view(1, numNodes*numNodes, 3),
+                                                                  [nodesPresent[args.obs_length-1]], [edgesPresent[args.obs_length-1]], h_nodes, h_edges, c_nodes, c_edges)
         loss_pred = Gaussian2DLikelihoodInference(outputs, true_nodes[tstep + 1].view(1, numNodes, 2), nodesPresent[args.obs_length-1], [true_nodesPresent[tstep + 1]])
         # print loss_pred.data
 
@@ -207,12 +210,15 @@ def sample(nodes, edges, nodesPresent, edgesPresent, args, net, true_nodes, true
         # TODO Currently, assuming edges from the last observed time-step will stay for the entire prediction length
         ret_edges[tstep + 1, :, :] = compute_edges(ret_nodes.data, tstep + 1, edgesPresent[args.obs_length-1])
 
+        # Store computed attention weights
+        ret_attn.append(attn_w[0])
+
         # print ret_nodes[tstep + 1]
         # print ret_edges[tstep + 1]
         # raw_input()
     # print true_nodes, ret_nodes
     # raw_input()
-    return ret_nodes
+    return ret_nodes, ret_attn
 
 
 if __name__ == '__main__':

@@ -159,11 +159,10 @@ class ST_GRAPH():
                         retEdgePresent[framenum].append((i, j))
                         retEdgePresent[framenum].append((j, i))
                         # the position returned is a tuple of tuples
-                        # retEdges[framenum, i*(numNodes) + j, :] = getVector(edge.edge_pos_list[framenum])
-                        # retEdges[framenum, j*(numNodes) + i, :] = -retEdges[framenum, i*(numNodes) + j, :]
+
                         retEdges[framenum, i*(numNodes) + j, :] = getMagnitudeAndDirection(edge.edge_pos_list[framenum])
-                        retEdges[framenum, j*numNodes + i, 0] = retEdges[framenum, i*(numNodes) + j, 0]
-                        retEdges[framenum, j*numNodes + i, 1:3] = -retEdges[framenum, i*(numNodes) + j, 1:3]
+                        retEdges[framenum, j*numNodes + i, 0] = np.copy(retEdges[framenum, i*(numNodes) + j, 0])
+                        retEdges[framenum, j*numNodes + i, 1:3] = -np.copy(retEdges[framenum, i*(numNodes) + j, 1:3])
 
         return retNodes, retEdges, retNodePresent, retEdgePresent
 
