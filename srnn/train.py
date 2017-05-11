@@ -26,7 +26,7 @@ def main():
     # RNN size
     parser.add_argument('--human_node_rnn_size', type=int, default=512,
                         help='Size of Human Node RNN hidden state')
-    parser.add_argument('--human_human_edge_rnn_size', type=int, default=128,
+    parser.add_argument('--human_human_edge_rnn_size', type=int, default=256,
                         help='Size of Human Human Edge RNN hidden state')
 
     # Input and output size
@@ -38,39 +38,47 @@ def main():
                         help='Dimension of the node output')
 
     # Embedding size
-    parser.add_argument('--human_node_embedding_size', type=int, default=128,
+    parser.add_argument('--human_node_embedding_size', type=int, default=256,
                         help='Embedding size of node features')
-    parser.add_argument('--human_human_edge_embedding_size', type=int, default=64,
+    parser.add_argument('--human_human_edge_embedding_size', type=int, default=128,
                         help='Embedding size of edge features')
 
+    # Decoder size
+    parser.add_argument('--human_node_decoder_size', type=int, default=100,
+                        help='Number of hidden units in the decoder layer')
+
     # Sequence length
-    parser.add_argument('--seq_length', type=int, default=12,
+    parser.add_argument('--seq_length', type=int, default=8,
                         help='Sequence length')
 
     # Batch size
-    parser.add_argument('--batch_size', type=int, default=32,
+    parser.add_argument('--batch_size', type=int, default=64,
                         help='Batch size')
 
     # Number of epochs
-    parser.add_argument('--num_epochs', type=int, default=50,
+    parser.add_argument('--num_epochs', type=int, default=200,
                         help='number of epochs')
     # Frequency at which the model should be saved parameter
     parser.add_argument('--save_every', type=int, default=200,
                         help='save frequency')
 
     # Gradient value at which it should be clipped
-    parser.add_argument('--grad_clip', type=float, default=1.,
+    parser.add_argument('--grad_clip', type=float, default=50.,
                         help='clip gradients at this value')
     # Lambda regularization parameter (L2)
     parser.add_argument('--lambda_param', type=float, default=0.0005,
                         help='L2 regularization parameter')
 
     # Learning rate parameter
-    parser.add_argument('--learning_rate', type=float, default=0.0005,
+    parser.add_argument('--learning_rate', type=float, default=0.001,
                         help='learning rate')
     # Decay rate for the learning rate parameter
     parser.add_argument('--decay_rate', type=float, default=0.95,
                         help='decay rate for rmsprop')
+
+    # Dropout rate
+    parser.add_argument('--dropout', type=float, default=0.5,
+                        help='Dropout probability')
 
     # The leave out dataset
     parser.add_argument('--leaveDataset', type=int, default=3,
@@ -135,8 +143,8 @@ def train(args):
 
     # optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
     # optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
-    optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate)
-    # optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate)
+    # optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate)
+    optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate)
     # learning_rate = args.learning_rate
     print 'Training begin'
     # Training

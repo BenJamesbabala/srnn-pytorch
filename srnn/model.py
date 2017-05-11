@@ -26,15 +26,11 @@ class HumanNodeRNN(nn.Module):
         self.rnn_size = args.human_node_rnn_size
         self.output_size = args.human_node_output_size
         self.embedding_size = args.human_node_embedding_size
+        self.decoder_size = args.human_node_decoder_size
         self.input_size = args.human_node_input_size
 
         self.encoder_linear = nn.Linear(self.input_size, self.embedding_size)
         self.encoder_relu = nn.ReLU()
-
-        # self.hidden_temporal_encoder_linear = nn.Linear(args.human_human_edge_rnn_size, self.embedding_size)
-        # self.hidden_spatial_encoder_linear = nn.Linear(args.human_human_edge_rnn_size, self.embedding_size)
-
-        # self.hidden_encoder_relu = nn.ReLU()
 
         if args.temporal:
             # Only temporal edges
@@ -46,55 +42,45 @@ class HumanNodeRNN(nn.Module):
             # Both spatial and temporal edges
             self.cell = nn.LSTMCell(3*self.embedding_size, self.rnn_size)
 
-        self.decoder_linear = nn.Linear(self.rnn_size, self.output_size)
+        self.decoder_linear = nn.Linear(self.rnn_size, self.decoder_size)
+        self.decoder_relu = nn.ReLU()
+
+        self.output_linear = nn.Linear(self.decoder_size, self.output_size)
 
     def init_weights(self):
         self.encoder_linear.weight.data.normal_(0.1, 0.01)
         self.encoder_linear.bias.data.fill_(0)
 
-        # self.hidden_temporal_encoder_linear.weight.data.normal_(0.1, 0.01)
-        # self.hidden_temporal_encoder_linear.bias.data.fill_(0)
-
-        # self.hidden_spatial_encoder_linear.weight.data.normal_(0.1, 0.01)
-        # self.hidden_spatial_encoder_linear.bias.data.fill_(0)
-
         self.decoder_linear.weight.data.normal_(0.1, 0.01)
         self.decoder_linear.bias.data.fill_(0)
 
-    def forward(self, pos, h_temporal_other, h_spatial_other, h, c):
+        self.output_linear.weight.data.normal_(0.1, 0.01)
+        self.output_linear.bias.data.fill_(0)
+
+    def forward(self, pos, h_temporal, h_spatial_other, h, c):
         # Encode the input position
         encoded_input = self.encoder_linear(pos)
         encoded_input = self.encoder_relu(encoded_input)
-
-        # Encode the input hidden temporal states
-        # encoded_hidden_temporal = self.hidden_temporal_encoder_linear(h_temporal_other)
-        # encoded_hidden_temporal = self.hidden_encoder_relu(encoded_hidden_temporal)
-
-        # Encode the input hidden spatial states
-        # encoded_hidden_spatial = self.hidden_spatial_encoder_linear(h_spatial_other)
-        # encoded_hidden_spatial = self.hidden_encoder_relu(encoded_hidden_spatial)
-
-        encoded_hidden_spatial = h_spatial_other
-        encoded_hidden_temporal = h_temporal_other
-
-        # print encoded_hidden_spatial
-        # raw_input()
 
         if self.args.noedges:
             # Only the encoded input
             concat_encoded = encoded_input
         elif self.args.temporal:
             # Concat only the temporal embedding
-            concat_encoded = torch.cat((encoded_input, encoded_hidden_temporal), 1)
+            concat_encoded = torch.cat((encoded_input, h_temporal), 1)
         else:
             # Concat both the embeddings
-            concat_encoded = torch.cat((encoded_input, encoded_hidden_temporal, encoded_hidden_spatial), 1)
+            concat_encoded = torch.cat((encoded_input, h_temporal, h_spatial_other), 1)
 
         # One-step of LSTM
         h_new, c_new = self.cell(concat_encoded, (h, c))
 
         # Decode hidden state
         out = self.decoder_linear(h_new)
+        out = self.decoder_relu(out)
+
+        # Get output
+        out = self.output_linear(out)
 
         return out, h_new, c_new
 
@@ -113,21 +99,30 @@ class HumanHumanEdgeRNN(nn.Module):
         self.embedding_size = args.human_human_edge_embedding_size
         self.input_size = args.human_human_edge_input_size
 
-        self.encoder_linear = nn.Linear(self.input_size, self.embedding_size)
-        self.encoder_relu = nn.ReLU()
+        self.encoder_linear_1 = nn.Linear(self.input_size, self.embedding_size)
+        self.encoder_relu_1 = nn.ReLU()
+
+        self.encoder_linear_2 = nn.Linear(self.embedding_size, self.embedding_size)
+        self.encoder_relu_2 = nn.ReLU()
 
         self.cell = nn.LSTMCell(self.embedding_size, self.rnn_size)
 
     def init_weights(self):
 
-        self.encoder_linear.weight.data.normal_(0.1, 0.01)
-        self.encoder_linear.bias.data.fill_(0)
+        self.encoder_linear_1.weight.data.normal_(0.1, 0.01)
+        self.encoder_linear_1.bias.data.fill_(0)
+
+        self.encoder_linear_2.weight.data.normal_(0.1, 0.01)
+        self.encoder_linear_2.bias.data.fill_(0)
 
     def forward(self, inp, h, c):
 
         # Encode the input position
-        encoded_input = self.encoder_linear(inp)
-        encoded_input = self.encoder_relu(encoded_input)
+        encoded_input = self.encoder_linear_1(inp)
+        encoded_input = self.encoder_relu_1(encoded_input)
+
+        encoded_input = self.encoder_linear_2(encoded_input)
+        encoded_input = self.encoder_relu_2(encoded_input)
 
         # One-step of LSTM
         h_new, c_new = self.cell(encoded_input, (h, c))
@@ -324,7 +319,7 @@ class SRNN(nn.Module):
                             ind = Variable(torch.LongTensor([node]).cuda())
                             h_node = torch.index_select(hidden_states_node_RNNs, 0, ind)
                             hidden_attn_weighted, attn_w = self.attn(h_node, h_spatial[l])
-                            attn_weights[framenum][node] = (attn_w, node_others)
+                            attn_weights[framenum][node] = (attn_w.data.cpu().numpy(), node_others)
                             hidden_states_nodes_from_edges_spatial[node] = hidden_attn_weighted
 
             # Nodes
