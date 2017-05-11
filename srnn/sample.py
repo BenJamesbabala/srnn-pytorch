@@ -33,7 +33,7 @@ def main():
     parser.add_argument('--pred_length', type=int, default=8,
                         help='Predicted length of the trajectory')
     # Test dataset
-    parser.add_argument('--test_dataset', type=int, default=3,
+    parser.add_argument('--test_dataset', type=int, default=0,
                         help='Dataset to be tested on')
 
     # Model to be loaded
@@ -56,6 +56,7 @@ def main():
 
     # Save directory
     save_directory = 'save/'
+    save_directory += str(sample_args.test_dataset)+'/'
     if sample_args.noedges:
         print 'No edge RNNs used'
         save_directory += 'save_noedges'
@@ -193,6 +194,7 @@ def sample(nodes, edges, nodesPresent, edgesPresent, args, net, true_nodes, true
                                                                   [nodesPresent[args.obs_length-1]], [edgesPresent[args.obs_length-1]], h_nodes, h_edges, c_nodes, c_edges)
         loss_pred = Gaussian2DLikelihoodInference(outputs, true_nodes[tstep + 1].view(1, numNodes, 2), nodesPresent[args.obs_length-1], [true_nodesPresent[tstep + 1]])
         # print loss_pred.data
+        # raw_input()
 
         # Sample from o
         # mux, ... are tensors of shape 1 x numNodes

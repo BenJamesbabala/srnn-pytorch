@@ -48,11 +48,11 @@ def main():
                         help='Number of hidden units in the decoder layer')
 
     # Sequence length
-    parser.add_argument('--seq_length', type=int, default=8,
+    parser.add_argument('--seq_length', type=int, default=12,
                         help='Sequence length')
 
     # Batch size
-    parser.add_argument('--batch_size', type=int, default=64,
+    parser.add_argument('--batch_size', type=int, default=32,
                         help='Batch size')
 
     # Number of epochs
@@ -105,10 +105,10 @@ def main():
 
 
 def train(args):
-    # datasets = range(4)
+    datasets = range(4)
     # Remove the leave out dataset from the datasets
-    # datasets.remove(args.leaveDataset)
-    datasets = [0]
+    datasets.remove(args.leaveDataset)
+    # datasets = [0]
 
     # Construct the DataLoader object
     dataloader = DataLoader(args.batch_size, args.seq_length + 1, datasets, forcePreProcess=True)
@@ -118,6 +118,7 @@ def train(args):
 
     # Save directory
     save_directory = 'save/'
+    save_directory += str(args.leaveDataset)+'/'
     if args.noedges:
         print 'No edge RNNs used'
         save_directory += 'save_noedges'

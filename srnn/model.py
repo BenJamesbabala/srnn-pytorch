@@ -46,16 +46,7 @@ class HumanNodeRNN(nn.Module):
         self.decoder_relu = nn.ReLU()
 
         self.output_linear = nn.Linear(self.decoder_size, self.output_size)
-
-    def init_weights(self):
-        self.encoder_linear.weight.data.normal_(0.1, 0.01)
-        self.encoder_linear.bias.data.fill_(0)
-
-        self.decoder_linear.weight.data.normal_(0.1, 0.01)
-        self.decoder_linear.bias.data.fill_(0)
-
-        self.output_linear.weight.data.normal_(0.1, 0.01)
-        self.output_linear.bias.data.fill_(0)
+        # self.output_linear = nn.Linear(self.rnn_size, self.output_size)
 
     def forward(self, pos, h_temporal, h_spatial_other, h, c):
         # Encode the input position
@@ -80,6 +71,7 @@ class HumanNodeRNN(nn.Module):
         out = self.decoder_relu(out)
 
         # Get output
+        # out = self.output_linear(h_new)
         out = self.output_linear(out)
 
         return out, h_new, c_new
@@ -106,14 +98,6 @@ class HumanHumanEdgeRNN(nn.Module):
         self.encoder_relu_2 = nn.ReLU()
 
         self.cell = nn.LSTMCell(self.embedding_size, self.rnn_size)
-
-    def init_weights(self):
-
-        self.encoder_linear_1.weight.data.normal_(0.1, 0.01)
-        self.encoder_linear_1.bias.data.fill_(0)
-
-        self.encoder_linear_2.weight.data.normal_(0.1, 0.01)
-        self.encoder_linear_2.bias.data.fill_(0)
 
     def forward(self, inp, h, c):
 
@@ -204,11 +188,6 @@ class SRNN(nn.Module):
 
         # Initialize attention module
         self.attn = EdgeAttention(args, infer)
-
-        # Initialize the weights of the Node and Edge RNNs
-        self.humanNodeRNN.init_weights()
-        self.humanhumanEdgeRNN_spatial.init_weights()
-        self.humanhumanEdgeRNN_temporal.init_weights()
 
     def forward(self, nodes, edges, nodesPresent, edgesPresent, hidden_states_node_RNNs, hidden_states_edge_RNNs,
                 cell_states_node_RNNs, cell_states_edge_RNNs):
