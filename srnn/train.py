@@ -48,7 +48,7 @@ def main():
                         help='Number of hidden units in the decoder layer')
 
     # Sequence length
-    parser.add_argument('--seq_length', type=int, default=12,
+    parser.add_argument('--seq_length', type=int, default=8,
                         help='Sequence length')
 
     # Batch size
@@ -66,7 +66,7 @@ def main():
     parser.add_argument('--grad_clip', type=float, default=50.,
                         help='clip gradients at this value')
     # Lambda regularization parameter (L2)
-    parser.add_argument('--lambda_param', type=float, default=0.0005,
+    parser.add_argument('--lambda_param', type=float, default=0.0001,
                         help='L2 regularization parameter')
 
     # Learning rate parameter
@@ -77,7 +77,7 @@ def main():
                         help='decay rate for rmsprop')
 
     # Dropout rate
-    parser.add_argument('--dropout', type=float, default=0.5,
+    parser.add_argument('--dropout', type=float, default=0.7,
                         help='Dropout probability')
 
     # The leave out dataset
@@ -142,10 +142,10 @@ def train(args):
     net = SRNN(args)
     net.cuda()
 
-    # optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
+    optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
     # optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
     # optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate)
-    optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate)
+    # optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate)
     # learning_rate = args.learning_rate
     print 'Training begin'
     # Training
