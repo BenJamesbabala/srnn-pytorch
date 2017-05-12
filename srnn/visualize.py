@@ -145,6 +145,7 @@ def main():
 
     # Save directory
     save_directory = 'save/'
+    save_directory += str(args.test_dataset) + '/'
     plot_directory = 'plot/'
     if args.noedges:
         print 'No edge RNNs used'
