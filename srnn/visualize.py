@@ -113,10 +113,11 @@ def plot_trajectories(true_trajs, pred_trajs, nodesPresent, obs_length, name, pl
         plt.ylim((1, 0))
         plt.xlim((0, 1))
 
+    # plt.show()
     if withBackground:
         plt.savefig('plot_with_background/'+name+'.png')
     else:
-        plt.savefig('plot/'+name+'.png')
+        plt.savefig(plot_directory+'/'+name+'.png')
 
     plt.gcf().clear()
     plt.close()
@@ -130,6 +131,9 @@ def main():
     parser.add_argument('--temporal', action='store_true')
     parser.add_argument('--temporal_spatial', action='store_true')
     parser.add_argument('--attention', action='store_true')
+
+    parser.add_argument('--test_dataset', type=int, default=0,
+                        help='test dataset index')
 
     # Parse the parameters
     args = parser.parse_args()
@@ -162,8 +166,9 @@ def main():
     f = open(save_directory+'/results.pkl', 'rb')
     results = pickle.load(f)
 
-    print "Enter 0 (or) 1 for without/with background"
-    withBackground = int(input())
+    # print "Enter 0 (or) 1 for without/with background"
+    # withBackground = int(input())
+    withBackground = 0
 
     for i in range(len(results)):
         print i
