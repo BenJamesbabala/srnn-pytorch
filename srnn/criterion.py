@@ -60,3 +60,46 @@ def Gaussian2DLikelihood(outputs, targets, nodesPresent):
         return loss / counter
     else:
         return loss
+
+
+def Gaussian2DLikelihoodInference(outputs, targets, assumedNodesPresent, nodesPresent):
+    # Extract mean, std devs and correlation
+    mux, muy, sx, sy, corr = getCoef(outputs)
+
+    # Compute factors
+    normx = targets[:, :, 0] - mux
+    normy = targets[:, :, 1] - muy
+    sxsy = sx * sy
+
+    z = (normx/sx)**2 + (normy/sy)**2 - 2*((corr*normx*normy)/sxsy)
+    negRho = 1 - corr**2
+
+    # Numerator
+    result = torch.exp(-z/(2*negRho))
+    # Normalization factor
+    denom = 2 * np.pi * (sxsy * torch.sqrt(negRho))
+
+    # Final PDF calculation
+    result = result / denom
+
+    # Numerical stability
+    epsilon = 1e-20
+
+    result = -torch.log(torch.clamp(result, min=epsilon))
+
+    loss = 0
+    counter = 0
+
+    for framenum in range(outputs.size()[0]):
+        nodeIDs = nodesPresent[framenum]
+
+        for nodeID in nodeIDs:
+            if nodeID not in assumedNodesPresent:
+                continue
+            loss = loss + result[framenum, nodeID]
+            counter = counter + 1
+
+    if counter != 0:
+        return loss / counter
+    else:
+        return loss

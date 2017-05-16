@@ -24,24 +24,28 @@ def main():
     parser = argparse.ArgumentParser()
 
     # RNN size
-    parser.add_argument('--human_node_rnn_size', type=int, default=128,
+    parser.add_argument('--human_node_rnn_size', type=int, default=512,
                         help='Size of Human Node RNN hidden state')
-    parser.add_argument('--human_human_edge_rnn_size', type=int, default=64,
+    parser.add_argument('--human_human_edge_rnn_size', type=int, default=256,
                         help='Size of Human Human Edge RNN hidden state')
 
     # Input and output size
     parser.add_argument('--human_node_input_size', type=int, default=2,
                         help='Dimension of the node features')
-    parser.add_argument('--human_human_edge_input_size', type=int, default=2,
+    parser.add_argument('--human_human_edge_input_size', type=int, default=3,
                         help='Dimension of the edge features')
     parser.add_argument('--human_node_output_size', type=int, default=5,
                         help='Dimension of the node output')
 
     # Embedding size
-    parser.add_argument('--human_node_embedding_size', type=int, default=64,
+    parser.add_argument('--human_node_embedding_size', type=int, default=256,
                         help='Embedding size of node features')
-    parser.add_argument('--human_human_edge_embedding_size', type=int, default=64,
+    parser.add_argument('--human_human_edge_embedding_size', type=int, default=128,
                         help='Embedding size of edge features')
+
+    # Decoder size
+    parser.add_argument('--human_node_decoder_size', type=int, default=100,
+                        help='Number of hidden units in the decoder layer')
 
     # Sequence length
     parser.add_argument('--seq_length', type=int, default=8,
@@ -60,10 +64,10 @@ def main():
                         help='save frequency')
 
     # Gradient value at which it should be clipped
-    parser.add_argument('--grad_clip', type=float, default=1.,
+    parser.add_argument('--grad_clip', type=float, default=50.,
                         help='clip gradients at this value')
     # Lambda regularization parameter (L2)
-    parser.add_argument('--lambda_param', type=float, default=0.0005,
+    parser.add_argument('--lambda_param', type=float, default=0.0001,
                         help='L2 regularization parameter')
 
     # Learning rate parameter
@@ -73,11 +77,31 @@ def main():
     parser.add_argument('--decay_rate', type=float, default=0.95,
                         help='decay rate for rmsprop')
 
+    # Dropout rate
+    parser.add_argument('--dropout', type=float, default=0.7,
+                        help='Dropout probability')
+
     # The leave out dataset
     parser.add_argument('--leaveDataset', type=int, default=3,
                         help='The dataset index to be left out in training')
 
+    # Experiments
+    parser.add_argument('--noedges', action='store_true')
+    parser.add_argument('--temporal', action='store_true')
+    parser.add_argument('--temporal_spatial', action='store_true')
+    parser.add_argument('--attention', action='store_true')
+
+    # Attention type
+    parser.add_argument('--attention_type', choices=['concat', 'dot', 'general'], type=str, default='concat',
+                        help='Attention type')
+
     args = parser.parse_args()
+
+    # Check experiment tags
+    if not (args.noedges or args.temporal or args.temporal_spatial or args.attention):
+        print 'Use one of the experiment tags to enforce model'
+        return
+
     train(args)
 
 
@@ -85,6 +109,7 @@ def train(args):
     datasets = range(4)
     # Remove the leave out dataset from the datasets
     datasets.remove(args.leaveDataset)
+    # datasets = [0]
 
     # Construct the DataLoader object
     dataloader = DataLoader(args.batch_size, args.seq_length + 1, datasets, forcePreProcess=True)
@@ -92,33 +117,53 @@ def train(args):
     # Construct the ST-graph object
     stgraph = ST_GRAPH(args.batch_size, args.seq_length + 1)
 
-    with open(os.path.join('save', 'config.pkl'), 'wb') as f:
+    # Save directory
+    save_directory = 'save/'
+    save_directory += str(args.leaveDataset)+'/'
+    if args.noedges:
+        print 'No edge RNNs used'
+        save_directory += 'save_noedges'
+    elif args.temporal:
+        print 'Only temporal edge RNNs used'
+        save_directory += 'save_temporal'
+    elif args.temporal_spatial:
+        print 'Both temporal and spatial edge RNNs used'
+        save_directory += 'save_temporal_spatial'
+    else:
+        print 'Both temporal and spatial edge RNNs used with attention'
+        save_directory += 'save_attention'
+
+    with open(os.path.join(save_directory, 'config.pkl'), 'wb') as f:
         pickle.dump(args, f)
 
     def checkpoint_path(x):
-        return os.path.join('save', 'srnn_model_'+str(x)+'.tar')
+        # return os.path.join(save_directory, 'srnn_model_'+str(x)+'.tar')
+        return os.path.join(save_directory, 'srnn_model.tar')
 
     net = SRNN(args)
     net.cuda()
 
-    # optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
-    optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
-    learning_rate = args.learning_rate
+    optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
+    # optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
+    # optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate)
+    # optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate)
+    # learning_rate = args.learning_rate
     print 'Training begin'
     # Training
     for epoch in range(args.num_epochs):
         # optimizer = torch.optim.RMSprop(net.parameters(), lr=learning_rate)
-        for param_group in optimizer.param_groups:
-            param_group['lr'] = learning_rate
-        learning_rate *= args.decay_rate
+        # for param_group in optimizer.param_groups:
+        #    param_group['lr'] = learning_rate
+
+        # learning_rate *= args.decay_rate
+        # learning_rate /= np.sqrt(epoch + 1)
 
         dataloader.reset_batch_pointer()
 
         for batch in range(dataloader.num_batches):
             start = time.time()
 
-            # TODO Modify dataloader so that it doesn't return separate source and target data
-            # TODO Also, make sure each batch comes from the same dataset
+            # Get batch data
             x, _, d = dataloader.next_batch()
 
             # Read the st graph from data
@@ -136,19 +181,22 @@ def train(args):
 
                 # Define hidden states
                 numNodes = nodes.size()[1]
+                # maxNumEdges = ((numNodes) * (numNodes+1))/2
                 hidden_states_node_RNNs = Variable(torch.zeros(numNodes, args.human_node_rnn_size)).cuda()
                 hidden_states_edge_RNNs = Variable(torch.zeros(numNodes*numNodes, args.human_human_edge_rnn_size)).cuda()
+                # hidden_states_edge_RNNs = Variable(torch.zeros(maxNumEdges, args.human_human_edge_rnn_size)).cuda()
                 cell_states_node_RNNs = Variable(torch.zeros(numNodes, args.human_node_rnn_size)).cuda()
                 cell_states_edge_RNNs = Variable(torch.zeros(numNodes*numNodes, args.human_human_edge_rnn_size)).cuda()
+                # cell_states_edge_RNNs = Variable(torch.zeros(maxNumEdges, args.human_human_edge_rnn_size)).cuda()
 
                 # Zero out the gradients
                 net.zero_grad()
                 optimizer.zero_grad()
 
                 # Forward prop
-                outputs, _, _, _, _ = net(nodes[:args.seq_length], edges[:args.seq_length], nodesPresent[:-1], edgesPresent[:-1],
-                                          hidden_states_node_RNNs, hidden_states_edge_RNNs,
-                                          cell_states_node_RNNs, cell_states_edge_RNNs)
+                outputs, _, _, _, _, _ = net(nodes[:args.seq_length], edges[:args.seq_length], nodesPresent[:-1], edgesPresent[:-1],
+                                             hidden_states_node_RNNs, hidden_states_edge_RNNs,
+                                             cell_states_node_RNNs, cell_states_edge_RNNs)
 
                 # Compute loss
                 loss = Gaussian2DLikelihood(outputs, nodes[1:], nodesPresent[1:])
