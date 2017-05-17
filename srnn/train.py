@@ -148,7 +148,8 @@ def train(args):
     # optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
     # optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate)
     # optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate)
-    # learning_rate = args.learning_rate
+
+    curriculum = 1
     print 'Training begin'
     # Training
     for epoch in range(args.num_epochs):
@@ -198,7 +199,7 @@ def train(args):
                 # Forward prop
                 outputs, _, _, _, _, _ = net(nodes[:args.seq_length], edges[:args.seq_length], nodesPresent[:-1], edgesPresent[:-1],
                                              hidden_states_node_RNNs, hidden_states_edge_RNNs,
-                                             cell_states_node_RNNs, cell_states_edge_RNNs)                
+                                             cell_states_node_RNNs, cell_states_edge_RNNs, curriculum)
 
                 # Compute loss
                 loss = Gaussian2DLikelihood(outputs, nodes[1:], nodesPresent[1:])
@@ -281,6 +282,8 @@ def train(args):
         loss_epoch = loss_epoch / dataloader.valid_num_batches
         print('(epoch {}), valid_loss = {:.3f}'.format(epoch, loss_epoch))
         print '*************'
+
+        curriculum *= decay_rate
 
 
 if __name__ == '__main__':

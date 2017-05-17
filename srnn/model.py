@@ -190,7 +190,7 @@ class SRNN(nn.Module):
         self.attn = EdgeAttention(args, infer)
 
     def forward(self, nodes, edges, nodesPresent, edgesPresent, hidden_states_node_RNNs, hidden_states_edge_RNNs,
-                cell_states_node_RNNs, cell_states_edge_RNNs):
+                cell_states_node_RNNs, cell_states_edge_RNNs, curriculum):
         '''
         Parameters
         ==========
@@ -320,6 +320,12 @@ class SRNN(nn.Module):
 
                 hidden_states_node_RNNs[list_of_nodes.data] = h_nodes
                 cell_states_node_RNNs[list_of_nodes.data] = c_nodes
+
+            # Toss a coin
+            if np.random.rand() > curriculum:
+                # Use prediction as input
+                # TODO implement scheduled sampling
+                pass
 
         outputs_return = Variable(torch.zeros(self.seq_length, numNodes, self.output_size).cuda())
         for framenum in range(self.seq_length):
