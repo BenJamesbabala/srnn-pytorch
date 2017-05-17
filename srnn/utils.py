@@ -173,7 +173,7 @@ class DataLoader():
         # On an average, we need twice the number of batches to cover the data
         # due to randomization introduced
         self.num_batches = self.num_batches * 2
-        self.valid_num_batches = self.valid_num_batches * 2
+        # self.valid_num_batches = self.valid_num_batches * 2
 
     def next_batch(self, randomUpdate=True):
         '''

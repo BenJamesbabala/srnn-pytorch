@@ -58,6 +58,8 @@ def main():
     # Number of epochs
     parser.add_argument('--num_epochs', type=int, default=50,
                         help='number of epochs')
+    parser.add_argument('--patience', type=int, default=30,
+                        help='Patience')
 
     # Frequency at which the model should be saved parameter
     parser.add_argument('--save_every', type=int, default=200,
@@ -67,7 +69,7 @@ def main():
     parser.add_argument('--grad_clip', type=float, default=50.,
                         help='clip gradients at this value')
     # Lambda regularization parameter (L2)
-    parser.add_argument('--lambda_param', type=float, default=0.0001,
+    parser.add_argument('--lambda_param', type=float, default=0.0005,
                         help='L2 regularization parameter')
 
     # Learning rate parameter
@@ -138,8 +140,8 @@ def train(args):
         pickle.dump(args, f)
 
     def checkpoint_path(x):
-        # return os.path.join(save_directory, 'srnn_model_'+str(x)+'.tar')
-        return os.path.join(save_directory, 'srnn_model.tar')
+        return os.path.join(save_directory, 'srnn_model_'+str(x)+'.tar')
+        # return os.path.join(save_directory, 'srnn_model.tar')
 
     net = SRNN(args)
     net.cuda()
@@ -150,6 +152,8 @@ def train(args):
     # optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate)
     # learning_rate = args.learning_rate
     print 'Training begin'
+    best_val_loss = 100
+    best_epoch = 0
     # Training
     for epoch in range(args.num_epochs):
         # optimizer = torch.optim.RMSprop(net.parameters(), lr=learning_rate)
@@ -224,6 +228,7 @@ def train(args):
                                                                                     epoch,
                                                                                     loss_batch, end - start))
 
+            '''
             if ((epoch * dataloader.num_batches + batch) % args.save_every == 0 and ((epoch * dataloader.num_batches + batch) > 0)) or (epoch * dataloader.num_batches + batch + 1 == args.num_epochs * dataloader.num_batches):
                 print 'Saving model'
                 torch.save({
@@ -232,6 +237,7 @@ def train(args):
                     'iteration': epoch*dataloader.num_batches + batch,
                     'state_dict': net.state_dict()
                 }, checkpoint_path(epoch*dataloader.num_batches + batch))
+            '''
 
         print '*************'
         # Validation
@@ -240,7 +246,7 @@ def train(args):
 
         for batch in range(dataloader.valid_num_batches):
             # Get batch data
-            x, _, d = dataloader.next_valid_batch()
+            x, _, d = dataloader.next_valid_batch(randomUpdate=False)
 
             # Read the st graph from data
             stgraph.readGraph(x)
@@ -257,13 +263,10 @@ def train(args):
 
                 # Define hidden states
                 numNodes = nodes.size()[1]
-                # maxNumEdges = ((numNodes) * (numNodes+1))/2
                 hidden_states_node_RNNs = Variable(torch.zeros(numNodes, args.human_node_rnn_size)).cuda()
                 hidden_states_edge_RNNs = Variable(torch.zeros(numNodes*numNodes, args.human_human_edge_rnn_size)).cuda()
-                # hidden_states_edge_RNNs = Variable(torch.zeros(maxNumEdges, args.human_human_edge_rnn_size)).cuda()
                 cell_states_node_RNNs = Variable(torch.zeros(numNodes, args.human_node_rnn_size)).cuda()
                 cell_states_edge_RNNs = Variable(torch.zeros(numNodes*numNodes, args.human_human_edge_rnn_size)).cuda()
-                # cell_states_edge_RNNs = Variable(torch.zeros(maxNumEdges, args.human_human_edge_rnn_size)).cuda()
 
                 outputs, _, _, _, _, _ = net(nodes[:args.seq_length], edges[:args.seq_length], nodesPresent[:-1], edgesPresent[:-1],
                                              hidden_states_node_RNNs, hidden_states_edge_RNNs,
@@ -279,8 +282,25 @@ def train(args):
             loss_epoch += loss_batch
 
         loss_epoch = loss_epoch / dataloader.valid_num_batches
+
+        # Update best validation loss until now
+        if loss_epoch < best_val_loss:
+            best_val_loss = loss_epoch
+            best_epoch = epoch
+
         print('(epoch {}), valid_loss = {:.3f}'.format(epoch, loss_epoch))
+        print 'Best epoch', best_epoch, 'Best validation loss', best_val_loss
         print '*************'
+
+        # Save the model after each epoch
+        print 'Saving model'
+        torch.save({
+            'epoch': epoch,
+            'state_dict': net.state_dict(),
+            'optimizer_state_dict': optimizer.state_dict()
+        }, checkpoint_path(epoch))
+
+    print 'Best epoch', best_epoch, 'Best validation Loss', best_val_loss
 
 
 if __name__ == '__main__':
