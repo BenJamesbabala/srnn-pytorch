@@ -26,7 +26,7 @@ def main():
     # RNN size
     parser.add_argument('--human_node_rnn_size', type=int, default=512,
                         help='Size of Human Node RNN hidden state')
-    parser.add_argument('--human_human_edge_rnn_size', type=int, default=256,
+    parser.add_argument('--human_human_edge_rnn_size', type=int, default=128,
                         help='Size of Human Human Edge RNN hidden state')
 
     # Input and output size
@@ -38,17 +38,17 @@ def main():
                         help='Dimension of the node output')
 
     # Embedding size
-    parser.add_argument('--human_node_embedding_size', type=int, default=256,
+    parser.add_argument('--human_node_embedding_size', type=int, default=128,
                         help='Embedding size of node features')
-    parser.add_argument('--human_human_edge_embedding_size', type=int, default=128,
+    parser.add_argument('--human_human_edge_embedding_size', type=int, default=64,
                         help='Embedding size of edge features')
 
     # Decoder size
-    parser.add_argument('--human_node_decoder_size', type=int, default=100,
+    parser.add_argument('--human_node_decoder_size', type=int, default=20,
                         help='Number of hidden units in the decoder layer')
 
     # Sequence length
-    parser.add_argument('--seq_length', type=int, default=8,
+    parser.add_argument('--seq_length', type=int, default=12,
                         help='Sequence length')
 
     # Batch size
@@ -110,6 +110,7 @@ def train(args):
     # Remove the leave out dataset from the datasets
     datasets.remove(args.leaveDataset)
     # datasets = [0]
+    # args.leaveDataset = 0
 
     # Construct the DataLoader object
     dataloader = DataLoader(args.batch_size, args.seq_length + 1, datasets, forcePreProcess=True)
@@ -196,7 +197,7 @@ def train(args):
                 # Forward prop
                 outputs, _, _, _, _, _ = net(nodes[:args.seq_length], edges[:args.seq_length], nodesPresent[:-1], edgesPresent[:-1],
                                              hidden_states_node_RNNs, hidden_states_edge_RNNs,
-                                             cell_states_node_RNNs, cell_states_edge_RNNs)
+                                             cell_states_node_RNNs, cell_states_edge_RNNs)                
 
                 # Compute loss
                 loss = Gaussian2DLikelihood(outputs, nodes[1:], nodesPresent[1:])

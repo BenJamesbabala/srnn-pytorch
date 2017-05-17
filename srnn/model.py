@@ -10,7 +10,7 @@ import torch.nn as nn
 from torch.autograd import Variable
 import torch
 import numpy as np
-import ipdb
+# import ipdb
 
 
 class HumanNodeRNN(nn.Module):

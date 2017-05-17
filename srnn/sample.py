@@ -27,10 +27,10 @@ def main():
 
     parser = argparse.ArgumentParser()
     # Observed length of the trajectory parameter
-    parser.add_argument('--obs_length', type=int, default=4,
+    parser.add_argument('--obs_length', type=int, default=6,
                         help='Observed length of the trajectory')
     # Predicted length of the trajectory parameter
-    parser.add_argument('--pred_length', type=int, default=4,
+    parser.add_argument('--pred_length', type=int, default=6,
                         help='Predicted length of the trajectory')
     # Test dataset
     parser.add_argument('--test_dataset', type=int, default=3,
@@ -88,6 +88,7 @@ def main():
 
     # Dataset to get data from
     dataset = [sample_args.test_dataset]
+    # dataset = [0]
 
     dataloader = DataLoader(1, sample_args.pred_length + sample_args.obs_length, dataset, True)
 
@@ -172,6 +173,7 @@ def sample(nodes, edges, nodesPresent, edgesPresent, args, net, true_nodes, true
     c_nodes = Variable(torch.zeros(numNodes, net.args.human_node_rnn_size), volatile=True).cuda()
     c_edges = Variable(torch.zeros(numNodes * numNodes, net.args.human_human_edge_rnn_size), volatile=True).cuda()
 
+    # print 'Observed part'
     # Propagate the observed length of the trajectory
     for tstep in range(args.obs_length-1):
         out_obs, h_nodes, h_edges, c_nodes, c_edges, _ = net(nodes[tstep].view(1, numNodes, 2), edges[tstep].view(1, numNodes*numNodes, 3), [nodesPresent[tstep]], [edgesPresent[tstep]], h_nodes, h_edges, c_nodes, c_edges)
@@ -187,6 +189,7 @@ def sample(nodes, edges, nodesPresent, edgesPresent, args, net, true_nodes, true
 
     ret_attn = []
 
+    # print 'Predicted part'
     # Propagate the predicted length of trajectory (sampling from previous prediction)
     for tstep in range(args.obs_length-1, args.pred_length + args.obs_length-1):
         # TODO Not keeping track of nodes leaving the frame (or new nodes entering the frame, which I don't think we can do anyway)
@@ -216,6 +219,7 @@ def sample(nodes, edges, nodesPresent, edgesPresent, args, net, true_nodes, true
         ret_attn.append(attn_w[0])
 
         # print ret_nodes[tstep + 1]
+        # print true_nodes[tstep + 1]
         # print ret_edges[tstep + 1]
         # raw_input()
     # print true_nodes, ret_nodes
