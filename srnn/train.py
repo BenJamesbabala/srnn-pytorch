@@ -159,8 +159,9 @@ def train(args):
         # learning_rate *= args.decay_rate
         # learning_rate /= np.sqrt(epoch + 1)
 
-        dataloader.reset_batch_pointer()
+        dataloader.reset_batch_pointer(valid=False)
 
+        # Training
         for batch in range(dataloader.num_batches):
             start = time.time()
 
@@ -231,6 +232,56 @@ def train(args):
                     'iteration': epoch*dataloader.num_batches + batch,
                     'state_dict': net.state_dict()
                 }, checkpoint_path(epoch*dataloader.num_batches + batch))
+
+        print '*************'
+        # Validation
+        dataloader.reset_batch_pointer(valid=True)
+        loss_epoch = 0
+
+        for batch in range(dataloader.valid_num_batches):
+            # Get batch data
+            x, _, d = dataloader.next_valid_batch()
+
+            # Read the st graph from data
+            stgraph.readGraph(x)
+
+            # Loss for this batch
+            loss_batch = 0
+
+            for sequence in range(dataloader.batch_size):
+                nodes, edges, nodesPresent, edgesPresent = stgraph.getSequence(sequence)
+
+                # Convert to cuda variables
+                nodes = Variable(torch.from_numpy(nodes).float()).cuda()
+                edges = Variable(torch.from_numpy(edges).float()).cuda()
+
+                # Define hidden states
+                numNodes = nodes.size()[1]
+                # maxNumEdges = ((numNodes) * (numNodes+1))/2
+                hidden_states_node_RNNs = Variable(torch.zeros(numNodes, args.human_node_rnn_size)).cuda()
+                hidden_states_edge_RNNs = Variable(torch.zeros(numNodes*numNodes, args.human_human_edge_rnn_size)).cuda()
+                # hidden_states_edge_RNNs = Variable(torch.zeros(maxNumEdges, args.human_human_edge_rnn_size)).cuda()
+                cell_states_node_RNNs = Variable(torch.zeros(numNodes, args.human_node_rnn_size)).cuda()
+                cell_states_edge_RNNs = Variable(torch.zeros(numNodes*numNodes, args.human_human_edge_rnn_size)).cuda()
+                # cell_states_edge_RNNs = Variable(torch.zeros(maxNumEdges, args.human_human_edge_rnn_size)).cuda()
+
+                outputs, _, _, _, _, _ = net(nodes[:args.seq_length], edges[:args.seq_length], nodesPresent[:-1], edgesPresent[:-1],
+                                             hidden_states_node_RNNs, hidden_states_edge_RNNs,
+                                             cell_states_node_RNNs, cell_states_edge_RNNs)                
+
+                # Compute loss
+                loss = Gaussian2DLikelihood(outputs, nodes[1:], nodesPresent[1:])
+
+                loss_batch += loss.data[0]
+
+            stgraph.reset()
+            loss_batch = loss_batch / dataloader.batch_size
+            loss_epoch += loss_batch
+
+        loss_epoch = loss_epoch / dataloader.valid_num_batches
+        print('(epoch {}), valid_loss = {:.3f}'.format(epoch, loss_epoch))
+        print '*************'
+
 
 if __name__ == '__main__':
     main()
