@@ -14,7 +14,7 @@ import random
 
 class DataLoader():
 
-    def __init__(self, batch_size=50, seq_length=5, datasets=[0, 1, 2, 3, 4], forcePreProcess=False):
+    def __init__(self, batch_size=50, seq_length=5, datasets=[0, 1, 2, 3, 4], forcePreProcess=False, infer=False):
         '''
         Initialiser function for the DataLoader class
         params:
@@ -28,6 +28,7 @@ class DataLoader():
                           './data/ucy/zara/zara01', './data/ucy/zara/zara02',
                           './data/ucy/univ']
         self.used_data_dirs = [self.data_dirs[x] for x in datasets]
+        self.infer = infer
 
         # Number of datasets
         self.numDatasets = len(self.data_dirs)
@@ -125,7 +126,8 @@ class DataLoader():
                     # Add their pedID, x, y to the row of the numpy array
                     pedsWithPos.append([ped, current_x, current_y])
 
-                if ind > numFrames * self.val_fraction:
+                if (ind > numFrames * self.val_fraction) or (self.infer):
+                    # At inference time, no validation data
                     # Add the details of all the peds in the current frame to all_frame_data
                     all_frame_data[dataset_index].append(np.array(pedsWithPos))
                 else:
@@ -215,7 +217,7 @@ class DataLoader():
             else:
                 # Not enough frames left
                 # Increment the dataset pointer and set the frame_pointer to zero
-                self.tick_batch_pointer()
+                self.tick_batch_pointer(valid=False)
 
         return x_batch, y_batch, d
 

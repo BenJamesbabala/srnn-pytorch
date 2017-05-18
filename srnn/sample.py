@@ -37,8 +37,8 @@ def main():
                         help='Dataset to be tested on')
 
     # Model to be loaded
-    parser.add_argument('--iteration', type=int, default=3199,
-                        help='Iteration of model to be loaded')
+    parser.add_argument('--epoch', type=int, default=49,
+                        help='Epoch of model to be loaded')
 
     # Experiments
     parser.add_argument('--noedges', action='store_true')
@@ -77,20 +77,21 @@ def main():
     net = SRNN(saved_args, True)
     net.cuda()
 
-    # checkpoint_path = os.path.join(save_directory, 'srnn_model_'+str(sample_args.iteration)+'.tar')
-    checkpoint_path = os.path.join(save_directory, 'srnn_model.tar')
+    checkpoint_path = os.path.join(save_directory, 'srnn_model_'+str(sample_args.epoch)+'.tar')
+    # checkpoint_path = os.path.join(save_directory, 'srnn_model.tar')
     if os.path.isfile(checkpoint_path):
         print 'Loading checkpoint'
         checkpoint = torch.load(checkpoint_path)
-        model_iteration = checkpoint['iteration']
+        # model_iteration = checkpoint['iteration']
+        model_epoch = checkpoint['epoch']
         net.load_state_dict(checkpoint['state_dict'])
-        print 'Loaded checkpoint at iteration', model_iteration
+        print 'Loaded checkpoint at epoch', model_epoch
 
     # Dataset to get data from
     dataset = [sample_args.test_dataset]
     # dataset = [0]
 
-    dataloader = DataLoader(1, sample_args.pred_length + sample_args.obs_length, dataset, True)
+    dataloader = DataLoader(1, sample_args.pred_length + sample_args.obs_length, dataset, True, infer=True)
 
     dataloader.reset_batch_pointer()
 
