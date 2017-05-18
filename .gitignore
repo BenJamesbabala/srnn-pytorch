@@ -21,3 +21,4 @@ tests/
 save_*
 plot_*
 copy_from_server.sh
+log

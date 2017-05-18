@@ -69,7 +69,7 @@ def main():
     parser.add_argument('--grad_clip', type=float, default=50.,
                         help='clip gradients at this value')
     # Lambda regularization parameter (L2)
-    parser.add_argument('--lambda_param', type=float, default=0.0005,
+    parser.add_argument('--lambda_param', type=float, default=0.0001,
                         help='L2 regularization parameter')
 
     # Learning rate parameter
@@ -120,6 +120,26 @@ def train(args):
     # Construct the ST-graph object
     stgraph = ST_GRAPH(args.batch_size, args.seq_length + 1)
 
+    # Log directory
+    log_directory = 'log/'
+    log_directory += str(args.leaveDataset)+'/'
+    if args.noedges:
+        print 'No edge RNNs used'
+        log_directory += 'log_noedges'
+    elif args.temporal:
+        print 'Only temporal edge RNNs used'
+        log_directory += 'log_temporal'
+    elif args.temporal_spatial:
+        print 'Both temporal and spatial edge RNNs used'
+        log_directory += 'log_temporal_spatial'
+    else:
+        print 'Both temporal and spatial edge RNNs used with attention'
+        log_directory += 'log_attention'
+
+    # Logging file
+    log_file_curve = open(os.path.join(log_directory, 'log_curve.txt'), 'w')
+    log_file = open(os.path.join(log_directory, 'val.txt'), 'w')
+    
     # Save directory
     save_directory = 'save/'
     save_directory += str(args.leaveDataset)+'/'
@@ -164,6 +184,7 @@ def train(args):
         # learning_rate /= np.sqrt(epoch + 1)
 
         dataloader.reset_batch_pointer(valid=False)
+        loss_epoch = 0
 
         # Training
         for batch in range(dataloader.num_batches):
@@ -221,6 +242,7 @@ def train(args):
             stgraph.reset()
             end = time.time()
             loss_batch = loss_batch / dataloader.batch_size
+            loss_epoch += loss_batch
 
             print(
                 '{}/{} (epoch {}), train_loss = {:.3f}, time/batch = {:.3f}'.format(epoch * dataloader.num_batches + batch,
@@ -238,7 +260,8 @@ def train(args):
                     'state_dict': net.state_dict()
                 }, checkpoint_path(epoch*dataloader.num_batches + batch))
             '''
-
+        loss_epoch /= dataloader.num_batches
+        log_file_curve.write(str(epoch)+','+str(loss_epoch)+',')
         print '*************'
         # Validation
         dataloader.reset_batch_pointer(valid=True)
@@ -290,6 +313,7 @@ def train(args):
 
         print('(epoch {}), valid_loss = {:.3f}'.format(epoch, loss_epoch))
         print 'Best epoch', best_epoch, 'Best validation loss', best_val_loss
+        log_file_curve.write(str(loss_epoch)+'\n')
         print '*************'
 
         # Save the model after each epoch
@@ -301,7 +325,11 @@ def train(args):
         }, checkpoint_path(epoch))
 
     print 'Best epoch', best_epoch, 'Best validation Loss', best_val_loss
+    log_file.write(str(best_epoch)+','+str(best_val_loss))
 
+    # Close logging files
+    log_file.close()
+    log_file_curve.close()
 
 if __name__ == '__main__':
     main()
