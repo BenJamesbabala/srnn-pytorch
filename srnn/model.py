@@ -125,7 +125,9 @@ class EdgeAttention(nn.Module):
         self.human_node_rnn_size = args.human_node_rnn_size
 
         self.node_layer = nn.Linear(self.human_node_rnn_size, self.human_human_edge_rnn_size, bias=False)
-        self.edge_layer = nn.Linear(self.human_human_edge_rnn_size, self.human_human_edge_rnn_size, bias=False)
+        # self.edge_layer = nn.Linear(self.human_human_edge_rnn_size, self.human_human_edge_rnn_size, bias=False)
+
+        # self.variable_length_layer = nn.Linear(self.)
 
         self.nonlinearity = nn.Tanh()
         self.general_weight_matrix = nn.Parameter(torch.Tensor(self.human_human_edge_rnn_size, self.human_human_edge_rnn_size))
@@ -141,7 +143,8 @@ class EdgeAttention(nn.Module):
         # Compute attention
         # Apply layers on top of edges and node
         node_embed = self.node_layer(h_node).squeeze(0)
-        edges_embed = self.edge_layer(h_edges)
+        # edges_embed = self.edge_layer(h_edges)
+        edges_embed = h_edges
 
         if self.args.attention_type == 'concat':
             # Concat based attention
@@ -151,6 +154,8 @@ class EdgeAttention(nn.Module):
         elif self.args.attention_type == 'dot':
             # Dot based attention
             attn = torch.mv(edges_embed, node_embed)
+            # Variable length # NOTE multiplying the unnormalized weights with number of edges for now
+            attn = torch.mul(attn, num_edges)
         else:
             # General attention
             attn = torch.mm(edges_embed, self.general_weight_matrix)
