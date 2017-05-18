@@ -69,7 +69,7 @@ def main():
     parser.add_argument('--grad_clip', type=float, default=50.,
                         help='clip gradients at this value')
     # Lambda regularization parameter (L2)
-    parser.add_argument('--lambda_param', type=float, default=0.0001,
+    parser.add_argument('--lambda_param', type=float, default=0.00005,
                         help='L2 regularization parameter')
 
     # Learning rate parameter
@@ -80,7 +80,7 @@ def main():
                         help='decay rate for rmsprop')
 
     # Dropout rate
-    parser.add_argument('--dropout', type=float, default=0.7,
+    parser.add_argument('--dropout', type=float, default=0.9,
                         help='Dropout probability')
 
     # The leave out dataset
