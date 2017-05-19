@@ -106,7 +106,7 @@ def main():
     for batch in range(dataloader.num_batches):
         start = time.time()
 
-        x, _, d = dataloader.next_batch()
+        x, _, d = dataloader.next_batch(randomUpdate=False)
 
         stgraph.readGraph(x)
 
