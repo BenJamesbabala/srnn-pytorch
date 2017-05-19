@@ -94,7 +94,7 @@ def main():
     parser.add_argument('--attention', action='store_true')
 
     # Attention type
-    parser.add_argument('--attention_type', choices=['concat', 'dot', 'general'], type=str, default='dot',
+    parser.add_argument('--attention_type', choices=['concat', 'dot', 'general'], type=str, default='concat',
                         help='Attention type')
 
     args = parser.parse_args()

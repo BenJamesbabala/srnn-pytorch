@@ -151,6 +151,8 @@ class EdgeAttention(nn.Module):
             attn = node_embed.expand(num_edges, self.human_human_edge_rnn_size) + edges_embed
             attn = self.nonlinearity(attn)
             attn = torch.sum(attn, dim=1).squeeze(1)
+            # Variable length # NOTE multiplying the unnormalized weights with number of edges for now
+            attn = torch.mul(attn, num_edges)
         elif self.args.attention_type == 'dot':
             # Dot based attention
             attn = torch.mv(edges_embed, node_embed)
