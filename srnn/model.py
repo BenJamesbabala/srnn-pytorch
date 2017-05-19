@@ -125,7 +125,7 @@ class EdgeAttention(nn.Module):
         self.human_node_rnn_size = args.human_node_rnn_size
 
         self.node_layer = nn.Linear(self.human_node_rnn_size, self.human_human_edge_rnn_size, bias=False)
-        self.edge_layer = nn.Linear(self.human_human_edge_rnn_size, self.human_human_edge_rnn_size, bias=False)
+        # self.edge_layer = nn.Linear(self.human_human_edge_rnn_size, self.human_human_edge_rnn_size, bias=False)
 
         # self.variable_length_layer = nn.Linear(self.)
 
