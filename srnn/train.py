@@ -166,10 +166,10 @@ def train(args):
     net = SRNN(args)
     net.cuda()
 
-    optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
+    # optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
     # optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
     # optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate)
-    # optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate)
+    optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate)
     # learning_rate = args.learning_rate
     print 'Training begin'
     best_val_loss = 100
