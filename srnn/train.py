@@ -80,7 +80,7 @@ def main():
                         help='decay rate for rmsprop')
 
     # Dropout rate
-    parser.add_argument('--dropout', type=float, default=0.9,
+    parser.add_argument('--dropout', type=float, default=0.3,
                         help='Dropout probability')
 
     # The leave out dataset
