@@ -56,7 +56,7 @@ def main():
                         help='Batch size')
 
     # Number of epochs
-    parser.add_argument('--num_epochs', type=int, default=100,
+    parser.add_argument('--num_epochs', type=int, default=50,
                         help='number of epochs')
     parser.add_argument('--patience', type=int, default=30,
                         help='Patience')
