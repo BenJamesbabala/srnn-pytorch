@@ -54,7 +54,7 @@ class HumanNodeRNN(nn.Module):
         # Encode the input position
         encoded_input = self.encoder_linear(pos)
         encoded_input = self.encoder_relu(encoded_input)
-        encoded_input = self.encoder_dropout(encoded_input)
+        # encoded_input = self.encoder_dropout(encoded_input)
 
         if self.args.noedges:
             # Only the encoded input
