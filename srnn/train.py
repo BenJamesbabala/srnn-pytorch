@@ -26,7 +26,7 @@ def main():
     # RNN size
     parser.add_argument('--human_node_rnn_size', type=int, default=512,
                         help='Size of Human Node RNN hidden state')
-    parser.add_argument('--human_human_edge_rnn_size', type=int, default=128,
+    parser.add_argument('--human_human_edge_rnn_size', type=int, default=256,
                         help='Size of Human Human Edge RNN hidden state')
 
     # Input and output size
@@ -38,13 +38,13 @@ def main():
                         help='Dimension of the node output')
 
     # Embedding size
-    parser.add_argument('--human_node_embedding_size', type=int, default=128,
+    parser.add_argument('--human_node_embedding_size', type=int, default=256,
                         help='Embedding size of node features')
-    parser.add_argument('--human_human_edge_embedding_size', type=int, default=64,
+    parser.add_argument('--human_human_edge_embedding_size', type=int, default=128,
                         help='Embedding size of edge features')
 
     # Decoder size
-    parser.add_argument('--human_node_decoder_size', type=int, default=20,
+    parser.add_argument('--human_node_decoder_size', type=int, default=50,
                         help='Number of hidden units in the decoder layer')
 
     # Sequence length
@@ -80,7 +80,7 @@ def main():
                         help='decay rate for rmsprop')
 
     # Dropout rate
-    parser.add_argument('--dropout', type=float, default=0.2,
+    parser.add_argument('--dropout', type=float, default=0.1,
                         help='Dropout probability')
 
     # The leave out dataset
