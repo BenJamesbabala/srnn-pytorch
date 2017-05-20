@@ -56,7 +56,7 @@ def main():
                         help='Batch size')
 
     # Number of epochs
-    parser.add_argument('--num_epochs', type=int, default=50,
+    parser.add_argument('--num_epochs', type=int, default=100,
                         help='number of epochs')
     parser.add_argument('--patience', type=int, default=30,
                         help='Patience')
@@ -80,7 +80,7 @@ def main():
                         help='decay rate for rmsprop')
 
     # Dropout rate
-    parser.add_argument('--dropout', type=float, default=0.3,
+    parser.add_argument('--dropout', type=float, default=0.2,
                         help='Dropout probability')
 
     # The leave out dataset
