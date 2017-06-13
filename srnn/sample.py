@@ -198,6 +198,8 @@ def sample(nodes, edges, nodesPresent, edgesPresent, args, net, true_nodes, true
                                                                   [nodesPresent[args.obs_length-1]], [edgesPresent[args.obs_length-1]], h_nodes, h_edges, c_nodes, c_edges)
         loss_pred = Gaussian2DLikelihoodInference(outputs, true_nodes[tstep + 1].view(1, numNodes, 2), nodesPresent[args.obs_length-1], [true_nodesPresent[tstep + 1]])
         # print loss_pred.data
+        print attn_w
+        raw_input()
         # raw_input()
 
         # Sample from o

@@ -24,9 +24,9 @@ def main():
     parser = argparse.ArgumentParser()
 
     # RNN size
-    parser.add_argument('--human_node_rnn_size', type=int, default=512,
+    parser.add_argument('--human_node_rnn_size', type=int, default=128,
                         help='Size of Human Node RNN hidden state')
-    parser.add_argument('--human_human_edge_rnn_size', type=int, default=128,
+    parser.add_argument('--human_human_edge_rnn_size', type=int, default=256,
                         help='Size of Human Human Edge RNN hidden state')
 
     # Input and output size
@@ -38,9 +38,9 @@ def main():
                         help='Dimension of the node output')
 
     # Embedding size
-    parser.add_argument('--human_node_embedding_size', type=int, default=128,
+    parser.add_argument('--human_node_embedding_size', type=int, default=64,
                         help='Embedding size of node features')
-    parser.add_argument('--human_human_edge_embedding_size', type=int, default=64,
+    parser.add_argument('--human_human_edge_embedding_size', type=int, default=256,
                         help='Embedding size of edge features')
 
     # Decoder size
@@ -80,7 +80,7 @@ def main():
                         help='decay rate for rmsprop')
 
     # Dropout rate
-    parser.add_argument('--dropout', type=float, default=0.1,
+    parser.add_argument('--dropout', type=float, default=0.05,
                         help='Dropout probability')
 
     # The leave out dataset
@@ -94,7 +94,7 @@ def main():
     parser.add_argument('--attention', action='store_true')
 
     # Attention type
-    parser.add_argument('--attention_type', choices=['concat', 'dot', 'general'], type=str, default='concat',
+    parser.add_argument('--attention_type', choices=['concat', 'dot', 'general'], type=str, default='dot',
                         help='Attention type')
 
     args = parser.parse_args()
