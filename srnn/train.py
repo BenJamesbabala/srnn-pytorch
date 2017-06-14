@@ -56,8 +56,9 @@ def main():
                         help='Batch size')
 
     # Number of epochs
-    parser.add_argument('--num_epochs', type=int, default=50,
+    parser.add_argument('--num_epochs', type=int, default=100,
                         help='number of epochs')
+    
     parser.add_argument('--patience', type=int, default=30,
                         help='Patience')
 
@@ -180,8 +181,8 @@ def train(args):
         for param_group in optimizer.param_groups:
             param_group['lr'] = learning_rate
 
-        learning_rate *= args.decay_rate
-        # learning_rate /= np.sqrt(epoch + 1)
+        # learning_rate *= args.decay_rate
+        learning_rate = args.learning_rate / np.sqrt(epoch + 1)
 
         dataloader.reset_batch_pointer(valid=False)
         loss_epoch = 0

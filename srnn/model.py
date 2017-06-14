@@ -132,10 +132,10 @@ class EdgeAttention(nn.Module):
         # self.node_dropout = nn.Dropout(args.dropout)
         # self.edge_layer = nn.Linear(self.human_human_edge_rnn_size, self.human_human_edge_rnn_size, bias=False)
 
-        self.temperature_layer = nn.Linear(1, 20)
-        self.relu = nn.ReLU()
-        self.temperature_layer_2 = nn.Linear(20, 20)
-        self.temperature_layer_3 = nn.Linear(20, 1)
+        # self.temperature_layer = nn.Linear(1, 20)
+        # self.relu = nn.ReLU()
+        # self.temperature_layer_2 = nn.Linear(20, 20)
+        # self.temperature_layer_3 = nn.Linear(20, 1)
 
         # self.variable_length_layer = nn.Linear(self.)
 
@@ -170,12 +170,15 @@ class EdgeAttention(nn.Module):
             # Dot based attention
             attn = torch.mv(edges_embed, node_embed)
             # Variable length # NOTE multiplying the unnormalized weights with number of edges for now
+            temperature = num_edges
+            '''
             temperature = Variable(torch.Tensor([num_edges]).view(1, 1)).cuda()
             temperature = self.relu(self.temperature_layer(temperature))
             temperature = self.relu(self.temperature_layer_2(temperature))
             temperature = self.temperature_layer_3(temperature)
             temperature = temperature.view(1)
             temperature = temperature.expand(attn.size()[0])
+            '''
             attn = torch.mul(attn, temperature)
         else:
             # General attention
