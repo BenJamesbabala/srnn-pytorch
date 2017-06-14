@@ -57,7 +57,7 @@ class HumanNodeRNN(nn.Module):
         # Encode the input position
         encoded_input = self.encoder_linear(pos)
         encoded_input = self.encoder_relu(encoded_input)
-        encoded_input = self.dropout(encoded_input)
+        # encoded_input = self.dropout(encoded_input)
 
         if self.args.noedges:
             # Only the encoded input
@@ -66,13 +66,13 @@ class HumanNodeRNN(nn.Module):
             # Concat only the temporal embedding
             h_temporal_embedded = self.edge_embed(h_temporal)
             h_temporal_embedded = self.edge_embed_relu(h_temporal_embedded)
-            h_temporal_embedded = self.dropout(h_temporal_embedded)
+            # h_temporal_embedded = self.dropout(h_temporal_embedded)
             concat_encoded = torch.cat((encoded_input, h_temporal_embedded), 1)
         else:
             # Concat both the embeddings
             h_edges = torch.cat((h_temporal, h_spatial_other), 1)
             h_edges_embedded = self.edge_attention_embed_relu(self.edge_attention_embed(h_edges))
-            h_edges_embedded = self.dropout(h_edges_embedded)
+            # h_edges_embedded = self.dropout(h_edges_embedded)
             concat_encoded = torch.cat((encoded_input, h_edges_embedded), 1)
 
         # One-step of LSTM
@@ -109,7 +109,7 @@ class HumanHumanEdgeRNN(nn.Module):
         # Encode the input position
         encoded_input = self.encoder_linear_1(inp)
         encoded_input = self.encoder_relu_1(encoded_input)
-        encoded_input = self.dropout(encoded_input)
+        # encoded_input = self.dropout(encoded_input)
 
         # One-step of LSTM
         h_new, c_new = self.cell(encoded_input, (h, c))
@@ -132,6 +132,11 @@ class EdgeAttention(nn.Module):
         # self.node_dropout = nn.Dropout(args.dropout)
         # self.edge_layer = nn.Linear(self.human_human_edge_rnn_size, self.human_human_edge_rnn_size, bias=False)
 
+        self.temperature_layer = nn.Linear(1, 20)
+        self.relu = nn.ReLU()
+        self.temperature_layer_2 = nn.Linear(20, 20)
+        self.temperature_layer_3 = nn.Linear(20, 1)
+
         # self.variable_length_layer = nn.Linear(self.)
 
         self.nonlinearity = nn.Tanh()
@@ -148,7 +153,7 @@ class EdgeAttention(nn.Module):
         # Compute attention
         # Apply layers on top of edges and node
         node_embed = self.node_layer(h_node)
-        node_embed = self.dropout(node_embed)
+        # node_embed = self.dropout(node_embed)
         node_embed = node_embed.squeeze(0)
         # node_embed = self.node_dropout(node_embed)
         # edges_embed = self.edge_layer(h_edges)
@@ -165,7 +170,13 @@ class EdgeAttention(nn.Module):
             # Dot based attention
             attn = torch.mv(edges_embed, node_embed)
             # Variable length # NOTE multiplying the unnormalized weights with number of edges for now
-            attn = torch.mul(attn, num_edges)
+            temperature = Variable(torch.Tensor([num_edges]).view(1, 1)).cuda()
+            temperature = self.relu(self.temperature_layer(temperature))
+            temperature = self.relu(self.temperature_layer_2(temperature))
+            temperature = self.temperature_layer_3(temperature)
+            temperature = temperature.view(1)
+            temperature = temperature.expand(attn.size()[0])
+            attn = torch.mul(attn, temperature)
         else:
             # General attention
             attn = torch.mm(edges_embed, self.general_weight_matrix)
