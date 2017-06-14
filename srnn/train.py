@@ -77,7 +77,7 @@ def main():
     parser.add_argument('--learning_rate', type=float, default=0.001,
                         help='learning rate')
     # Decay rate for the learning rate parameter
-    parser.add_argument('--decay_rate', type=float, default=0.95,
+    parser.add_argument('--decay_rate', type=float, default=0.96,
                         help='decay rate for rmsprop')
 
     # Dropout rate
@@ -181,8 +181,8 @@ def train(args):
         for param_group in optimizer.param_groups:
             param_group['lr'] = learning_rate
 
-        # learning_rate *= args.decay_rate
-        learning_rate = args.learning_rate / np.sqrt(epoch + 1)
+        learning_rate *= args.decay_rate
+        # learning_rate = args.learning_rate / np.sqrt(epoch + 1)
 
         dataloader.reset_batch_pointer(valid=False)
         loss_epoch = 0
