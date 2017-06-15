@@ -48,15 +48,15 @@ def main():
                         help='Number of hidden units in the decoder layer')
 
     # Sequence length
-    parser.add_argument('--seq_length', type=int, default=12,
+    parser.add_argument('--seq_length', type=int, default=20,
                         help='Sequence length')
 
     # Batch size
-    parser.add_argument('--batch_size', type=int, default=64,
+    parser.add_argument('--batch_size', type=int, default=32,
                         help='Batch size')
 
     # Number of epochs
-    parser.add_argument('--num_epochs', type=int, default=100,
+    parser.add_argument('--num_epochs', type=int, default=50,
                         help='number of epochs')
     
     parser.add_argument('--patience', type=int, default=30,
@@ -67,14 +67,14 @@ def main():
                         help='save frequency')
 
     # Gradient value at which it should be clipped
-    parser.add_argument('--grad_clip', type=float, default=50.,
+    parser.add_argument('--grad_clip', type=float, default=10.,
                         help='clip gradients at this value')
     # Lambda regularization parameter (L2)
     parser.add_argument('--lambda_param', type=float, default=0.00005,
                         help='L2 regularization parameter')
 
     # Learning rate parameter
-    parser.add_argument('--learning_rate', type=float, default=0.0005,
+    parser.add_argument('--learning_rate', type=float, default=0.001,
                         help='learning rate')
     # Decay rate for the learning rate parameter
     parser.add_argument('--decay_rate', type=float, default=0.96,
@@ -109,11 +109,11 @@ def main():
 
 
 def train(args):
-    datasets = range(4)
+    # datasets = range(4)
     # Remove the leave out dataset from the datasets
-    datasets.remove(args.leaveDataset)
-    # datasets = [0]
-    # args.leaveDataset = 0
+    # datasets.remove(args.leaveDataset)
+    datasets = [1]
+    args.leaveDataset = 2
 
     # Construct the DataLoader object
     dataloader = DataLoader(args.batch_size, args.seq_length + 1, datasets, forcePreProcess=True)
@@ -162,15 +162,15 @@ def train(args):
 
     def checkpoint_path(x):
         return os.path.join(save_directory, 'srnn_model_'+str(x)+'.tar')
-        # return os.path.join(save_directory, 'srnn_model.tar')
 
     net = SRNN(args)
     net.cuda()
 
     # optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
     # optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
-    optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate)
+    # optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate)
     # optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate)
+    optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate, momentum=0.0001, centered=True)
     learning_rate = args.learning_rate
     print 'Training begin'
     best_val_loss = 100
@@ -192,7 +192,7 @@ def train(args):
             start = time.time()
 
             # Get batch data
-            x, _, d = dataloader.next_batch()
+            x, _, d = dataloader.next_batch(randomUpdate=True)
 
             # Read the st graph from data
             stgraph.readGraph(x)
@@ -209,13 +209,12 @@ def train(args):
 
                 # Define hidden states
                 numNodes = nodes.size()[1]
-                # maxNumEdges = ((numNodes) * (numNodes+1))/2
+
                 hidden_states_node_RNNs = Variable(torch.zeros(numNodes, args.human_node_rnn_size)).cuda()
                 hidden_states_edge_RNNs = Variable(torch.zeros(numNodes*numNodes, args.human_human_edge_rnn_size)).cuda()
-                # hidden_states_edge_RNNs = Variable(torch.zeros(maxNumEdges, args.human_human_edge_rnn_size)).cuda()
+
                 cell_states_node_RNNs = Variable(torch.zeros(numNodes, args.human_node_rnn_size)).cuda()
                 cell_states_edge_RNNs = Variable(torch.zeros(numNodes*numNodes, args.human_human_edge_rnn_size)).cuda()
-                # cell_states_edge_RNNs = Variable(torch.zeros(maxNumEdges, args.human_human_edge_rnn_size)).cuda()
 
                 # Zero out the gradients
                 net.zero_grad()
@@ -224,7 +223,7 @@ def train(args):
                 # Forward prop
                 outputs, _, _, _, _, _ = net(nodes[:args.seq_length], edges[:args.seq_length], nodesPresent[:-1], edgesPresent[:-1],
                                              hidden_states_node_RNNs, hidden_states_edge_RNNs,
-                                             cell_states_node_RNNs, cell_states_edge_RNNs)                
+                                             cell_states_node_RNNs, cell_states_edge_RNNs)
 
                 # Compute loss
                 loss = Gaussian2DLikelihood(outputs, nodes[1:], nodesPresent[1:])

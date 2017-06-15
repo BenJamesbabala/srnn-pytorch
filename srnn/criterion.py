@@ -29,8 +29,8 @@ def Gaussian2DLikelihood(outputs, targets, nodesPresent):
     normy = targets[:, :, 1] - muy
     sxsy = sx * sy
 
-    z = (normx/sx)**2 + (normy/sy)**2 - 2*((corr*normx*normy)/sxsy)
-    negRho = 1 - corr**2
+    z = torch.pow((normx/sx), 2) + torch.pow((normy/sy), 2) - 2*((corr*normx*normy)/sxsy)
+    negRho = 1 - torch.pow(corr, 2)
 
     # Numerator
     result = torch.exp(-z/(2*negRho))
