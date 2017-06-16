@@ -112,7 +112,7 @@ def train(args):
     # datasets = range(4)
     # Remove the leave out dataset from the datasets
     # datasets.remove(args.leaveDataset)
-    datasets = [1]
+    datasets = [0, 1, 3]
     args.leaveDataset = 2
 
     # Construct the DataLoader object
