@@ -36,7 +36,7 @@ class HumanNodeRNN(nn.Module):
 
         self.edge_embed = nn.Linear(self.edge_rnn_size, self.embedding_size)
 
-        self.edge_attention_embed = nn.Linear(self.edge_rnn_size*2, self.embedding_size)
+        self.edge_attention_embed = nn.Linear(self.edge_rnn_size, self.embedding_size)
 
         if args.temporal:
             # Only temporal edges
@@ -51,7 +51,7 @@ class HumanNodeRNN(nn.Module):
 
         self.output_linear = nn.Linear(self.rnn_size, self.output_size)
 
-    def forward(self, pos, h_temporal, h_spatial_other, h, c):
+    def forward(self, pos, h_spatial_other, h, c):
         # Encode the input position
         encoded_input = self.encoder_linear(pos)
         encoded_input = self.relu(encoded_input)
@@ -67,7 +67,8 @@ class HumanNodeRNN(nn.Module):
             concat_encoded = torch.cat((encoded_input, h_temporal_embedded), 1)
         else:
             # Concat both the embeddings
-            h_edges = torch.cat((h_temporal, h_spatial_other), 1)
+            # h_edges = torch.cat((h_temporal, h_spatial_other), 1)
+            h_edges = h_spatial_other
             h_edges_embedded = self.relu(self.edge_attention_embed(h_edges))
             h_edges_embedded = self.dropout(h_edges_embedded)
             # h_edges_embedded = self.dropout(h_edges_embedded)
@@ -134,43 +135,28 @@ class EdgeAttention(nn.Module):
 
         self.general_weight_matrix.data.normal_(0.1, 0.01)
 
-    def forward(self, h_node, h_edges):
+    def forward(self, h_node, h_nodes_other):
         '''
-        h_node : Hidden state of the node at (tstep -1). Of size 1 x human_node_rnn_size
-        h_edges : Hidden states of all spatial edges connected to the node at tstep. Of size n x human_human_edge_rnn_size
+        h_nodes : Hidden states of all the nodes at (tstep -1). Of size m x human_node_rnn_size, where m
+        is the number of nodes at tstep
         '''
-        num_edges = h_edges.size()[0]
-        # Compute attention
-        # Apply layers on top of edges and node
-        node_embed = self.relu(self.node_layer(h_node))
-        node_embed = self.dropout(node_embed)
-        node_embed = node_embed.squeeze(0)
-        # edges_embed = self.edge_layer(h_edges)
-        edges_embed = h_edges
+        num_nodes_other = h_nodes_other.size()[0]
 
-        if self.args.attention_type == 'concat':
-            # Concat based attention
-            attn = node_embed.expand(num_edges, self.human_human_edge_rnn_size) + edges_embed
-            attn = self.nonlinearity(attn)
-            attn = torch.sum(attn, dim=1).squeeze(1)
-            # Variable length # NOTE multiplying the unnormalized weights with number of edges for now
-            attn = torch.mul(attn, num_edges)
-        elif self.args.attention_type == 'dot':
-            # Dot based attention
-            attn = torch.mv(edges_embed, node_embed)
-            # Variable length # NOTE multiplying the unnormalized weights with number of edges for now
-            temperature = num_edges
-            attn = torch.mul(attn, temperature)
-        else:
-            # General attention
-            attn = torch.mm(edges_embed, self.general_weight_matrix)
-            attn = torch.mv(attn, node_embed)
+        # First, embed the current hidden state
+        node_embed = self.dropout(self.relu(self.node_layer(h_node)))
+        node_embed = node_embed.squeeze(0)
+        # Then, embed all the other hidden states
+        node_embed_other = self.dropout(self.relu(self.node_layer(h_nodes_other)))
+
+        attn = torch.mv(node_embed_other, node_embed)
+        temperature = num_nodes_other
+        attn = torch.mul(attn, temperature)
 
         attn = torch.nn.functional.softmax(attn)
         # Compute weighted value
-        weighted_value = torch.mv(torch.t(h_edges), attn)
+        weighted_value = torch.mv(torch.t(node_embed_other), attn)
         return weighted_value, attn
-
+        
 
 class SRNN(nn.Module):
     '''
@@ -242,77 +228,19 @@ class SRNN(nn.Module):
 
         # Data structure to store attention weights
         attn_weights = [{} for _ in range(self.seq_length)]
-
+        
         for framenum in range(self.seq_length):
             edgeIDs = edgesPresent[framenum]
             temporal_edges = [x for x in edgeIDs if x[0] == x[1]]
             spatial_edges = [x for x in edgeIDs if x[0] != x[1]]
             edges_current = edges[framenum]
 
-            hidden_states_nodes_from_edges_temporal = Variable(torch.zeros(numNodes, self.human_human_edge_rnn_size).cuda())
-            hidden_states_nodes_from_edges_spatial = Variable(torch.zeros(numNodes, self.human_human_edge_rnn_size).cuda())
-
-            # Edges
-            if len(edgeIDs) != 0 and (not self.args.noedges):
-
-                # Temporal Edges
-                if len(temporal_edges) != 0:
-
-                    list_of_temporal_edges = Variable(torch.LongTensor([x[0]*numNodes + x[0] for x in edgeIDs if x[0] == x[1]]).cuda())
-                    list_of_temporal_nodes = torch.LongTensor([x[0] for x in edgeIDs if x[0] == x[1]]).cuda()
-
-                    edges_temporal_start_end = torch.index_select(edges_current, 0, list_of_temporal_edges)
-                    hidden_temporal_start_end = torch.index_select(hidden_states_edge_RNNs, 0, list_of_temporal_edges)
-                    cell_temporal_start_end = torch.index_select(cell_states_edge_RNNs, 0, list_of_temporal_edges)
-
-                    h_temporal, c_temporal = self.humanhumanEdgeRNN_temporal(edges_temporal_start_end, hidden_temporal_start_end,
-                                                                             cell_temporal_start_end)
-                    # ipdb.set_trace()
-
-                    hidden_states_edge_RNNs[list_of_temporal_edges.data] = h_temporal
-                    cell_states_edge_RNNs[list_of_temporal_edges.data] = c_temporal
-
-                    hidden_states_nodes_from_edges_temporal[list_of_temporal_nodes] = h_temporal
-
-                # Spatial Edges
-                if len(spatial_edges) != 0 and (not self.args.temporal):
-
-                    list_of_spatial_edges = Variable(torch.LongTensor([x[0]*numNodes + x[1] for x in edgeIDs if x[0] != x[1]]).cuda())
-                    list_of_spatial_nodes = np.array([x[0] for x in edgeIDs if x[0] != x[1]])
-
-                    edges_spatial_start_end = torch.index_select(edges_current, 0, list_of_spatial_edges)
-                    hidden_spatial_start_end = torch.index_select(hidden_states_edge_RNNs, 0, list_of_spatial_edges)
-                    cell_spatial_start_end = torch.index_select(cell_states_edge_RNNs, 0, list_of_spatial_edges)
-
-                    h_spatial, c_spatial = self.humanhumanEdgeRNN_spatial(edges_spatial_start_end, hidden_spatial_start_end,
-                                                                          cell_spatial_start_end)
-
-                    hidden_states_edge_RNNs[list_of_spatial_edges.data] = h_spatial
-                    cell_states_edge_RNNs[list_of_spatial_edges.data] = c_spatial
-
-                    # Sum Spatial
-                    if self.args.temporal_spatial:
-                        for node in range(numNodes):
-                            l = torch.LongTensor(np.where(list_of_spatial_nodes == node)[0]).cuda()
-                            if torch.numel(l) == 0:
-                                continue
-                            hidden_states_nodes_from_edges_spatial[node] = torch.sum(h_spatial[l], 0)
-
-                    # Attention
-                    else:
-                        for node in range(numNodes):
-                            l = torch.LongTensor(np.where(list_of_spatial_nodes == node)[0]).cuda()
-                            node_others = [x[1] for x in edgeIDs if x[0] == node and x[0] != x[1]]
-                            if torch.numel(l) == 0:
-                                continue
-                            ind = Variable(torch.LongTensor([node]).cuda())
-                            h_node = torch.index_select(hidden_states_node_RNNs, 0, ind)
-                            hidden_attn_weighted, attn_w = self.attn(h_node, h_spatial[l])
-                            attn_weights[framenum][node] = (attn_w.data.cpu().numpy(), node_others)
-                            hidden_states_nodes_from_edges_spatial[node] = hidden_attn_weighted
+            # hidden_states_nodes_from_edges_temporal = Variable(torch.zeros(numNodes, self.human_human_edge_rnn_size).cuda())
+            # hidden_states_nodes_from_edges_spatial = Variable(torch.zeros(numNodes, self.human_human_edge_rnn_size).cuda())
 
             # Nodes
             nodeIDs = nodesPresent[framenum]
+            numNodesCurrent = len(nodeIDs)
 
             if len(nodeIDs) != 0:
 
@@ -323,10 +251,22 @@ class SRNN(nn.Module):
                 hidden_nodes_current = torch.index_select(hidden_states_node_RNNs, 0, list_of_nodes)
                 cell_nodes_current = torch.index_select(cell_states_node_RNNs, 0, list_of_nodes)
 
-                h_temporal_other = hidden_states_nodes_from_edges_temporal[list_of_nodes.data]
-                h_spatial_other = hidden_states_nodes_from_edges_spatial[list_of_nodes.data]
+                # h_temporal_other = hidden_states_nodes_from_edges_temporal[list_of_nodes.data]                
+                # h_spatial_other = hidden_states_nodes_from_edges_spatial[list_of_nodes.data]
+                h_spatial_other = Variable(torch.zeros(numNodesCurrent, self.human_human_edge_rnn_size).cuda())
+                
+                if numNodesCurrent > 1:
+                    for node in range(numNodesCurrent):
+                        node_other = [x for x in range(numNodesCurrent) if x != node]
+                        list_of_other_nodes = Variable(torch.LongTensor(node_other).cuda())
+                        h_current = hidden_nodes_current[node]
+                        h_other = torch.index_select(hidden_nodes_current, 0, list_of_other_nodes)
+                        h_spatial, attn_w = self.attn(h_current.view(1, self.human_node_rnn_size), h_other)
+                        h_spatial_other[node] = h_spatial                        
+                        attn_weights[framenum][nodeIDs[node]] = (attn_w.data.cpu().numpy(), [nodeIDs[x] for x in node_other])
+                        
 
-                outputs[framenum * numNodes + list_of_nodes.data], h_nodes, c_nodes = self.humanNodeRNN(nodes_current, h_temporal_other, h_spatial_other, hidden_nodes_current, cell_nodes_current)
+                outputs[framenum * numNodes + list_of_nodes.data], h_nodes, c_nodes = self.humanNodeRNN(nodes_current, h_spatial_other, hidden_nodes_current, cell_nodes_current)
 
                 hidden_states_node_RNNs[list_of_nodes.data] = h_nodes
                 cell_states_node_RNNs[list_of_nodes.data] = c_nodes

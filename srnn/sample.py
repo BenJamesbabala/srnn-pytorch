@@ -19,7 +19,7 @@ import numpy as np
 from utils import DataLoader
 from st_graph import ST_GRAPH
 from model import SRNN
-from helper import getCoef, sample_gaussian_2d, compute_edges, get_mean_error
+from helper import getCoef, sample_gaussian_2d, compute_edges, get_mean_error, get_final_error
 from criterion import Gaussian2DLikelihood, Gaussian2DLikelihoodInference
 
 
@@ -102,6 +102,7 @@ def main():
 
     # Variable to maintain total error
     total_error = 0
+    final_error = 0
 
     for batch in range(dataloader.num_batches):
         start = time.time()
@@ -121,6 +122,7 @@ def main():
         ret_nodes, ret_attn = sample(obs_nodes, obs_edges, obs_nodesPresent, obs_edgesPresent, sample_args, net, nodes, edges, nodesPresent)
 
         total_error += get_mean_error(ret_nodes[sample_args.obs_length:].data, nodes[sample_args.obs_length:].data, nodesPresent[sample_args.obs_length-1], nodesPresent[sample_args.obs_length:])
+        final_error += get_final_error(ret_nodes[sample_args.obs_length:].data, nodes[sample_args.obs_length:].data, nodesPresent[sample_args.obs_length-1], nodesPresent[sample_args.obs_length:])
 
         end = time.time()
 
@@ -131,6 +133,7 @@ def main():
         stgraph.reset()
 
     print 'Total mean error of the model is ', total_error / dataloader.num_batches
+    print 'Total final error of the model is ', final_error / dataloader.num_batches
 
     print 'Saving results'
     with open(os.path.join(save_directory, 'results.pkl'), 'wb') as f:
@@ -179,8 +182,8 @@ def sample(nodes, edges, nodesPresent, edgesPresent, args, net, true_nodes, true
     for tstep in range(args.obs_length-1):
         out_obs, h_nodes, h_edges, c_nodes, c_edges, _ = net(nodes[tstep].view(1, numNodes, 2), edges[tstep].view(1, numNodes*numNodes, 3), [nodesPresent[tstep]], [edgesPresent[tstep]], h_nodes, h_edges, c_nodes, c_edges)
         loss_obs = Gaussian2DLikelihood(out_obs, nodes[tstep+1].view(1, numNodes, 2), [nodesPresent[tstep+1]])
-        #print loss_obs.data
-        #raw_input()
+        print loss_obs.data
+        raw_input()
 
     # Initialize the return data structures
     ret_nodes = Variable(torch.zeros(args.obs_length + args.pred_length, numNodes, 2), volatile=True).cuda()
@@ -191,26 +194,22 @@ def sample(nodes, edges, nodesPresent, edgesPresent, args, net, true_nodes, true
 
     ret_attn = []
 
-    # print 'Predicted part'
+    print 'Predicted part'
     # Propagate the predicted length of trajectory (sampling from previous prediction)
     for tstep in range(args.obs_length-1, args.pred_length + args.obs_length-1):
         # TODO Not keeping track of nodes leaving the frame (or new nodes entering the frame, which I don't think we can do anyway)
         outputs, h_nodes, h_edges, c_nodes, c_edges, attn_w = net(ret_nodes[tstep].view(1, numNodes, 2), ret_edges[tstep].view(1, numNodes*numNodes, 3),
                                                                   [nodesPresent[args.obs_length-1]], [edgesPresent[args.obs_length-1]], h_nodes, h_edges, c_nodes, c_edges)
         loss_pred = Gaussian2DLikelihoodInference(outputs, true_nodes[tstep + 1].view(1, numNodes, 2), nodesPresent[args.obs_length-1], [true_nodesPresent[tstep + 1]])
-        #print loss_pred.data
+        print loss_pred.data
         # print attn_w
-        #raw_input()
+        raw_input()
 
         # Sample from o
         # mux, ... are tensors of shape 1 x numNodes
         mux, muy, sx, sy, corr = getCoef(outputs)
         next_x, next_y = sample_gaussian_2d(mux.data, muy.data, sx.data, sy.data, corr.data, nodesPresent[args.obs_length-1])
-        # print mux.data, muy.data, sx.data, sy.data
-        # print
-        # print next_x, next_y
-        # raw_input()
-
+        
         ret_nodes[tstep + 1, :, 0] = next_x
         ret_nodes[tstep + 1, :, 1] = next_y
 
@@ -221,12 +220,6 @@ def sample(nodes, edges, nodesPresent, edgesPresent, args, net, true_nodes, true
         # Store computed attention weights
         ret_attn.append(attn_w[0])
 
-        # print ret_nodes[tstep + 1]
-        # print true_nodes[tstep + 1]
-        # print ret_edges[tstep + 1]
-        # raw_input()
-    # print true_nodes, ret_nodes
-    # raw_input()
     return ret_nodes, ret_attn
 
 

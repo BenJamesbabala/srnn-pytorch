@@ -40,6 +40,7 @@ def main():
     # Embedding size
     parser.add_argument('--human_node_embedding_size', type=int, default=64,
                         help='Embedding size of node features')
+    # Doesn't matter anymore
     parser.add_argument('--human_human_edge_embedding_size', type=int, default=256,
                         help='Embedding size of edge features')
 
@@ -109,11 +110,11 @@ def main():
 
 
 def train(args):
-    # datasets = range(4)
+    datasets = range(4)
     # Remove the leave out dataset from the datasets
-    # datasets.remove(args.leaveDataset)
-    datasets = [0, 1, 3]
-    args.leaveDataset = 2
+    datasets.remove(args.leaveDataset)
+    # datasets = [0, 1, 3]
+    # args.leaveDataset = 2
 
     # Construct the DataLoader object
     dataloader = DataLoader(args.batch_size, args.seq_length + 1, datasets, forcePreProcess=True)
@@ -166,11 +167,7 @@ def train(args):
     net = SRNN(args)
     net.cuda()
 
-    # optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
-    # optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
-    # optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate)
-    # optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate)
-    optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate, momentum=0.0001, centered=True)
+    optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate)
     learning_rate = args.learning_rate
     print 'Training begin'
     best_val_loss = 100
