@@ -24,23 +24,29 @@ def main():
     parser = argparse.ArgumentParser()
 
     # RNN size
-    parser.add_argument('--human_node_rnn_size', type=int, default=128,
+    parser.add_argument('--human_node_rnn_size', type=int, default=512,
                         help='Size of Human Node RNN hidden state')
+    # Not used anymore
     parser.add_argument('--human_human_edge_rnn_size', type=int, default=256,
                         help='Size of Human Human Edge RNN hidden state')
 
     # Input and output size
     parser.add_argument('--human_node_input_size', type=int, default=2,
                         help='Dimension of the node features')
+    # Not used anymore
     parser.add_argument('--human_human_edge_input_size', type=int, default=3,
                         help='Dimension of the edge features')
     parser.add_argument('--human_node_output_size', type=int, default=5,
                         help='Dimension of the node output')
 
     # Embedding size
+    parser.add_argument('--input_embedding_size', type=int, default=64,
+                        help='Embedding size of node features')
+    parser.add_argument('--human_tensor_embedding_size', type=int, default=256,
+                        help='Embedding size of tensor')
+    # Doesn't matter anymore
     parser.add_argument('--human_node_embedding_size', type=int, default=64,
                         help='Embedding size of node features')
-    # Doesn't matter anymore
     parser.add_argument('--human_human_edge_embedding_size', type=int, default=256,
                         help='Embedding size of edge features')
 

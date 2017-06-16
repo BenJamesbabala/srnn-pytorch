@@ -25,29 +25,17 @@ class HumanNodeRNN(nn.Module):
 
         self.rnn_size = args.human_node_rnn_size
         self.output_size = args.human_node_output_size
-        self.embedding_size = args.human_node_embedding_size
+        self.input_embedding_size = args.human_node_embedding_size
+        self.tensor_embedding_size = args.human_tensor_embedding_size
         self.input_size = args.human_node_input_size
 
-        self.edge_rnn_size = args.human_human_edge_rnn_size
-
-        self.encoder_linear = nn.Linear(self.input_size, self.embedding_size)
+        self.encoder_linear = nn.Linear(self.input_size, self.input_embedding_size)
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout(args.dropout)
 
-        self.edge_embed = nn.Linear(self.edge_rnn_size, self.embedding_size)
+        self.tensor_embed = nn.Linear(self.rnn_size, self.tensor_embedding_size)
 
-        self.edge_attention_embed = nn.Linear(self.edge_rnn_size, self.embedding_size)
-
-        if args.temporal:
-            # Only temporal edges
-            self.cell = nn.LSTMCell(2*self.embedding_size, self.rnn_size)
-        elif args.noedges:
-            # No edges at all
-            self.cell = nn.LSTMCell(self.embedding_size, self.rnn_size)
-        else:
-            # Both spatial and temporal edges
-            # self.cell = nn.LSTMCell(3*self.embedding_size, self.rnn_size)
-            self.cell = nn.LSTMCell(2*self.embedding_size, self.rnn_size)
+        self.cell = nn.LSTMCell(self.input_embedding_size + self.tensor_embedding_size, self.rnn_size)
 
         self.output_linear = nn.Linear(self.rnn_size, self.output_size)
 
@@ -57,23 +45,12 @@ class HumanNodeRNN(nn.Module):
         encoded_input = self.relu(encoded_input)
         encoded_input = self.dropout(encoded_input)
 
-        if self.args.noedges:
-            # Only the encoded input
-            concat_encoded = encoded_input
-        elif self.args.temporal:
-            # Concat only the temporal embedding
-            h_temporal_embedded = self.relu(self.edge_embed(h_temporal))
-            # h_temporal_embedded = self.dropout(h_temporal_embedded)
-            concat_encoded = torch.cat((encoded_input, h_temporal_embedded), 1)
-        else:
-            # Concat both the embeddings
-            # h_edges = torch.cat((h_temporal, h_spatial_other), 1)
-            h_edges = h_spatial_other
-            h_edges_embedded = self.relu(self.edge_attention_embed(h_edges))
-            h_edges_embedded = self.dropout(h_edges_embedded)
-            # h_edges_embedded = self.dropout(h_edges_embedded)
-            concat_encoded = torch.cat((encoded_input, h_edges_embedded), 1)
-
+        # Concat both the embeddings
+        h_tensor = h_spatial_other
+        h_tensor_embedded = self.relu(self.tensor_embed(h_tensor))
+        h_tensor_embedded = self.dropout(h_tensor_embedded)
+        concat_encoded = torch.cat((encoded_input, h_tensor_embedded), 1)
+        
         # One-step of LSTM
         h_new, c_new = self.cell(concat_encoded, (h, c))
 
@@ -143,10 +120,9 @@ class EdgeAttention(nn.Module):
         num_nodes_other = h_nodes_other.size()[0]
 
         # First, embed the current hidden state
-        node_embed = self.dropout(self.relu(self.node_layer(h_node)))
-        node_embed = node_embed.squeeze(0)
+        node_embed = h_node.squeeze(0)
         # Then, embed all the other hidden states
-        node_embed_other = self.dropout(self.relu(self.node_layer(h_nodes_other)))
+        node_embed_other = h_nodes_other
 
         attn = torch.mv(node_embed_other, node_embed)
         temperature = num_nodes_other
@@ -253,7 +229,7 @@ class SRNN(nn.Module):
 
                 # h_temporal_other = hidden_states_nodes_from_edges_temporal[list_of_nodes.data]                
                 # h_spatial_other = hidden_states_nodes_from_edges_spatial[list_of_nodes.data]
-                h_spatial_other = Variable(torch.zeros(numNodesCurrent, self.human_human_edge_rnn_size).cuda())
+                h_spatial_other = Variable(torch.zeros(numNodesCurrent, self.human_node_rnn_size).cuda())
                 
                 if numNodesCurrent > 1:
                     for node in range(numNodesCurrent):
