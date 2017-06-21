@@ -16,7 +16,7 @@ from torch.autograd import Variable
 
 from utils import DataLoader
 from st_graph import ST_GRAPH
-from model import SRNN
+from model import SRNN_noedges
 from criterion import Gaussian2DLikelihood
 
 
@@ -24,35 +24,21 @@ def main():
     parser = argparse.ArgumentParser()
 
     # RNN size
-    parser.add_argument('--human_node_rnn_size', type=int, default=512,
+    parser.add_argument('--human_node_rnn_size', type=int, default=256,
                         help='Size of Human Node RNN hidden state')
-    # Not used anymore
-    parser.add_argument('--human_human_edge_rnn_size', type=int, default=256,
-                        help='Size of Human Human Edge RNN hidden state')
 
     # Input and output size
     parser.add_argument('--human_node_input_size', type=int, default=2,
                         help='Dimension of the node features')
-    # Not used anymore
-    parser.add_argument('--human_human_edge_input_size', type=int, default=3,
-                        help='Dimension of the edge features')
+
     parser.add_argument('--human_node_output_size', type=int, default=5,
                         help='Dimension of the node output')
 
     # Embedding size
     parser.add_argument('--input_embedding_size', type=int, default=64,
                         help='Embedding size of node features')
-    parser.add_argument('--human_tensor_embedding_size', type=int, default=256,
+    parser.add_argument('--human_tensor_embedding_size', type=int, default=128,
                         help='Embedding size of tensor')
-    # Doesn't matter anymore
-    parser.add_argument('--human_node_embedding_size', type=int, default=64,
-                        help='Embedding size of node features')
-    parser.add_argument('--human_human_edge_embedding_size', type=int, default=256,
-                        help='Embedding size of edge features')
-
-    # Decoder size
-    parser.add_argument('--human_node_decoder_size', type=int, default=50,
-                        help='Number of hidden units in the decoder layer')
 
     # Sequence length
     parser.add_argument('--seq_length', type=int, default=20,
@@ -66,9 +52,6 @@ def main():
     parser.add_argument('--num_epochs', type=int, default=50,
                         help='number of epochs')
     
-    parser.add_argument('--patience', type=int, default=30,
-                        help='Patience')
-
     # Frequency at which the model should be saved parameter
     parser.add_argument('--save_every', type=int, default=200,
                         help='save frequency')
@@ -132,16 +115,12 @@ def train(args):
     log_directory = 'log/'
     log_directory += str(args.leaveDataset)+'/'
     if args.noedges:
-        print 'No edge RNNs used'
         log_directory += 'log_noedges'
     elif args.temporal:
-        print 'Only temporal edge RNNs used'
         log_directory += 'log_temporal'
     elif args.temporal_spatial:
-        print 'Both temporal and spatial edge RNNs used'
         log_directory += 'log_temporal_spatial'
     else:
-        print 'Both temporal and spatial edge RNNs used with attention'
         log_directory += 'log_attention'
 
     # Logging file
@@ -170,7 +149,7 @@ def train(args):
     def checkpoint_path(x):
         return os.path.join(save_directory, 'srnn_model_'+str(x)+'.tar')
 
-    net = SRNN(args)
+    net = SRNN_noedges(args)
     net.cuda()
 
     optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate)
@@ -204,29 +183,26 @@ def train(args):
             loss_batch = 0
 
             for sequence in range(dataloader.batch_size):
-                nodes, edges, nodesPresent, edgesPresent = stgraph.getSequence(sequence)
+                nodes, _, nodesPresent, _ = stgraph.getSequence(sequence)
 
                 # Convert to cuda variables
                 nodes = Variable(torch.from_numpy(nodes).float()).cuda()
-                edges = Variable(torch.from_numpy(edges).float()).cuda()
 
                 # Define hidden states
                 numNodes = nodes.size()[1]
 
                 hidden_states_node_RNNs = Variable(torch.zeros(numNodes, args.human_node_rnn_size)).cuda()
-                hidden_states_edge_RNNs = Variable(torch.zeros(numNodes*numNodes, args.human_human_edge_rnn_size)).cuda()
 
                 cell_states_node_RNNs = Variable(torch.zeros(numNodes, args.human_node_rnn_size)).cuda()
-                cell_states_edge_RNNs = Variable(torch.zeros(numNodes*numNodes, args.human_human_edge_rnn_size)).cuda()
 
                 # Zero out the gradients
                 net.zero_grad()
                 optimizer.zero_grad()
 
                 # Forward prop
-                outputs, _, _, _, _, _ = net(nodes[:args.seq_length], edges[:args.seq_length], nodesPresent[:-1], edgesPresent[:-1],
-                                             hidden_states_node_RNNs, hidden_states_edge_RNNs,
-                                             cell_states_node_RNNs, cell_states_edge_RNNs)
+                outputs, _, _, _ = net(nodes[:args.seq_length], nodesPresent[:-1],
+                                             hidden_states_node_RNNs,
+                                             cell_states_node_RNNs)
 
                 # Compute loss
                 loss = Gaussian2DLikelihood(outputs, nodes[1:], nodesPresent[1:])
@@ -281,22 +257,19 @@ def train(args):
             loss_batch = 0
 
             for sequence in range(dataloader.batch_size):
-                nodes, edges, nodesPresent, edgesPresent = stgraph.getSequence(sequence)
+                nodes, _, nodesPresent, _ = stgraph.getSequence(sequence)
 
                 # Convert to cuda variables
                 nodes = Variable(torch.from_numpy(nodes).float()).cuda()
-                edges = Variable(torch.from_numpy(edges).float()).cuda()
 
                 # Define hidden states
                 numNodes = nodes.size()[1]
                 hidden_states_node_RNNs = Variable(torch.zeros(numNodes, args.human_node_rnn_size)).cuda()
-                hidden_states_edge_RNNs = Variable(torch.zeros(numNodes*numNodes, args.human_human_edge_rnn_size)).cuda()
                 cell_states_node_RNNs = Variable(torch.zeros(numNodes, args.human_node_rnn_size)).cuda()
-                cell_states_edge_RNNs = Variable(torch.zeros(numNodes*numNodes, args.human_human_edge_rnn_size)).cuda()
 
-                outputs, _, _, _, _, _ = net(nodes[:args.seq_length], edges[:args.seq_length], nodesPresent[:-1], edgesPresent[:-1],
-                                             hidden_states_node_RNNs, hidden_states_edge_RNNs,
-                                             cell_states_node_RNNs, cell_states_edge_RNNs)                
+                outputs, _, _, _ = net(nodes[:args.seq_length], nodesPresent[:-1],
+                                             hidden_states_node_RNNs,
+                                             cell_states_node_RNNs)                
 
                 # Compute loss
                 loss = Gaussian2DLikelihood(outputs, nodes[1:], nodesPresent[1:])

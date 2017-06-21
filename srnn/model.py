@@ -25,7 +25,7 @@ class HumanNodeRNN(nn.Module):
 
         self.rnn_size = args.human_node_rnn_size
         self.output_size = args.human_node_output_size
-        self.input_embedding_size = args.human_node_embedding_size
+        self.input_embedding_size = args.input_embedding_size
         self.tensor_embedding_size = args.human_tensor_embedding_size
         self.input_size = args.human_node_input_size
 
@@ -60,39 +60,6 @@ class HumanNodeRNN(nn.Module):
         return out, h_new, c_new
 
 
-class HumanHumanEdgeRNN(nn.Module):
-    '''
-    Class representing the Human-Human Edge RNN in the s-t graph
-    '''
-    def __init__(self, args, infer=False):
-        super(HumanHumanEdgeRNN, self).__init__()
-
-        self.args = args
-        self.infer = infer
-
-        self.rnn_size = args.human_human_edge_rnn_size
-        self.embedding_size = args.human_human_edge_embedding_size
-        self.input_size = args.human_human_edge_input_size
-
-        self.encoder_linear = nn.Linear(self.input_size, self.embedding_size)
-        self.relu = nn.ReLU()
-        self.dropout = nn.Dropout(args.dropout)
-
-        self.cell = nn.LSTMCell(self.embedding_size, self.rnn_size)
-
-    def forward(self, inp, h, c):
-
-        # Encode the input position
-        encoded_input = self.encoder_linear(inp)
-        encoded_input = self.relu(encoded_input)
-        encoded_input = self.dropout(encoded_input)
-
-        # One-step of LSTM
-        h_new, c_new = self.cell(encoded_input, (h, c))
-
-        return h_new, c_new
-
-
 class EdgeAttention(nn.Module):
     def __init__(self, args, infer=False):
         super(EdgeAttention, self).__init__()
@@ -100,17 +67,16 @@ class EdgeAttention(nn.Module):
         self.args = args
         self.infer = infer
 
-        self.human_human_edge_rnn_size = args.human_human_edge_rnn_size
         self.human_node_rnn_size = args.human_node_rnn_size
 
-        self.node_layer = nn.Linear(self.human_node_rnn_size, self.human_human_edge_rnn_size)
-        self.relu = nn.ReLU()
-        self.dropout = nn.Dropout(args.dropout)
+        # self.node_layer = nn.Linear(self.human_node_rnn_size, self.human_human_edge_rnn_size)
+        # self.relu = nn.ReLU()
+        # self.dropout = nn.Dropout(args.dropout)
         
-        self.nonlinearity = nn.Tanh()
-        self.general_weight_matrix = nn.Parameter(torch.Tensor(self.human_human_edge_rnn_size, self.human_human_edge_rnn_size))
+        # self.nonlinearity = nn.Tanh()
+        # self.general_weight_matrix = nn.Parameter(torch.Tensor(self.human_human_edge_rnn_size, self.human_human_edge_rnn_size))
 
-        self.general_weight_matrix.data.normal_(0.1, 0.01)
+        # self.general_weight_matrix.data.normal_(0.1, 0.01)
 
     def forward(self, h_node, h_nodes_other):
         '''
@@ -125,21 +91,21 @@ class EdgeAttention(nn.Module):
         node_embed_other = h_nodes_other
 
         attn = torch.mv(node_embed_other, node_embed)
-        temperature = num_nodes_other
+        temperature = num_nodes_other / np.sqrt(self.human_node_rnn_size)
         attn = torch.mul(attn, temperature)
 
         attn = torch.nn.functional.softmax(attn)
         # Compute weighted value
         weighted_value = torch.mv(torch.t(node_embed_other), attn)
         return weighted_value, attn
-        
 
-class SRNN(nn.Module):
+
+class SRNN_noedges(nn.Module):
     '''
     Class representing the SRNN model
     '''
     def __init__(self, args, infer=False):
-        super(SRNN, self).__init__()
+        super(SRNN_noedges, self).__init__()
 
         self.args = args
         self.infer = infer
@@ -150,19 +116,15 @@ class SRNN(nn.Module):
             self.seq_length = args.seq_length
 
         self.human_node_rnn_size = args.human_node_rnn_size
-        self.human_human_edge_rnn_size = args.human_human_edge_rnn_size
         self.output_size = args.human_node_output_size
 
         # Initialize the Node and Edge RNNs
         self.humanNodeRNN = HumanNodeRNN(args, infer)
-        self.humanhumanEdgeRNN_spatial = HumanHumanEdgeRNN(args, infer)
-        self.humanhumanEdgeRNN_temporal = HumanHumanEdgeRNN(args, infer)
 
         # Initialize attention module
         self.attn = EdgeAttention(args, infer)
 
-    def forward(self, nodes, edges, nodesPresent, edgesPresent, hidden_states_node_RNNs, hidden_states_edge_RNNs,
-                cell_states_node_RNNs, cell_states_edge_RNNs):
+    def forward(self, nodes, nodesPresent, hidden_states_node_RNNs, cell_states_node_RNNs):
         '''
         Parameters
         ==========
@@ -206,14 +168,6 @@ class SRNN(nn.Module):
         attn_weights = [{} for _ in range(self.seq_length)]
         
         for framenum in range(self.seq_length):
-            edgeIDs = edgesPresent[framenum]
-            temporal_edges = [x for x in edgeIDs if x[0] == x[1]]
-            spatial_edges = [x for x in edgeIDs if x[0] != x[1]]
-            edges_current = edges[framenum]
-
-            # hidden_states_nodes_from_edges_temporal = Variable(torch.zeros(numNodes, self.human_human_edge_rnn_size).cuda())
-            # hidden_states_nodes_from_edges_spatial = Variable(torch.zeros(numNodes, self.human_human_edge_rnn_size).cuda())
-
             # Nodes
             nodeIDs = nodesPresent[framenum]
             numNodesCurrent = len(nodeIDs)
@@ -227,8 +181,6 @@ class SRNN(nn.Module):
                 hidden_nodes_current = torch.index_select(hidden_states_node_RNNs, 0, list_of_nodes)
                 cell_nodes_current = torch.index_select(cell_states_node_RNNs, 0, list_of_nodes)
 
-                # h_temporal_other = hidden_states_nodes_from_edges_temporal[list_of_nodes.data]                
-                # h_spatial_other = hidden_states_nodes_from_edges_spatial[list_of_nodes.data]
                 h_spatial_other = Variable(torch.zeros(numNodesCurrent, self.human_node_rnn_size).cuda())
                 
                 if numNodesCurrent > 1:
@@ -252,4 +204,4 @@ class SRNN(nn.Module):
             for node in range(numNodes):
                 outputs_return[framenum, node, :] = outputs[framenum*numNodes + node, :]
 
-        return outputs_return, hidden_states_node_RNNs, hidden_states_edge_RNNs, cell_states_node_RNNs, cell_states_edge_RNNs, attn_weights
+        return outputs_return, hidden_states_node_RNNs, cell_states_node_RNNs, attn_weights

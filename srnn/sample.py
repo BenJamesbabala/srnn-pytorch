@@ -18,7 +18,7 @@ from torch.autograd import Variable
 import numpy as np
 from utils import DataLoader
 from st_graph import ST_GRAPH
-from model import SRNN
+from model import SRNN_noedges
 from helper import getCoef, sample_gaussian_2d, compute_edges, get_mean_error, get_final_error
 from criterion import Gaussian2DLikelihood, Gaussian2DLikelihoodInference
 
@@ -74,7 +74,7 @@ def main():
     with open(os.path.join(save_directory, 'config.pkl'), 'rb') as f:
         saved_args = pickle.load(f)
 
-    net = SRNN(saved_args, True)
+    net = SRNN_noedges(saved_args, True)
     net.cuda()
 
     checkpoint_path = os.path.join(save_directory, 'srnn_model_'+str(sample_args.epoch)+'.tar')
@@ -111,15 +111,14 @@ def main():
 
         stgraph.readGraph(x)
 
-        nodes, edges, nodesPresent, edgesPresent = stgraph.getSequence(0)
+        nodes, _, nodesPresent, _ = stgraph.getSequence(0)
 
         # Convert to cuda variables
         nodes = Variable(torch.from_numpy(nodes).float(), volatile=True).cuda()
-        edges = Variable(torch.from_numpy(edges).float(), volatile=True).cuda()
 
-        obs_nodes, obs_edges, obs_nodesPresent, obs_edgesPresent = nodes[:sample_args.obs_length], edges[:sample_args.obs_length], nodesPresent[:sample_args.obs_length], edgesPresent[:sample_args.obs_length]
+        obs_nodes, obs_nodesPresent = nodes[:sample_args.obs_length], nodesPresent[:sample_args.obs_length]
 
-        ret_nodes, ret_attn = sample(obs_nodes, obs_edges, obs_nodesPresent, obs_edgesPresent, sample_args, net, nodes, edges, nodesPresent)
+        ret_nodes, ret_attn = sample(obs_nodes,obs_nodesPresent, sample_args, net, nodes, nodesPresent)
 
         total_error += get_mean_error(ret_nodes[sample_args.obs_length:].data, nodes[sample_args.obs_length:].data, nodesPresent[sample_args.obs_length-1], nodesPresent[sample_args.obs_length:])
         final_error += get_final_error(ret_nodes[sample_args.obs_length:].data, nodes[sample_args.obs_length:].data, nodesPresent[sample_args.obs_length-1], nodesPresent[sample_args.obs_length:])
@@ -140,7 +139,7 @@ def main():
         pickle.dump(results, f)
 
 
-def sample(nodes, edges, nodesPresent, edgesPresent, args, net, true_nodes, true_edges, true_nodesPresent):
+def sample(nodes, nodesPresent, args, net, true_nodes, true_nodesPresent):
     '''
     Parameters
     ==========
@@ -173,14 +172,12 @@ def sample(nodes, edges, nodesPresent, edgesPresent, args, net, true_nodes, true
 
     # Initialize hidden states for the nodes
     h_nodes = Variable(torch.zeros(numNodes, net.args.human_node_rnn_size), volatile=True).cuda()
-    h_edges = Variable(torch.zeros(numNodes * numNodes, net.args.human_human_edge_rnn_size), volatile=True).cuda()
     c_nodes = Variable(torch.zeros(numNodes, net.args.human_node_rnn_size), volatile=True).cuda()
-    c_edges = Variable(torch.zeros(numNodes * numNodes, net.args.human_human_edge_rnn_size), volatile=True).cuda()
 
     # print 'Observed part'
     # Propagate the observed length of the trajectory
     for tstep in range(args.obs_length-1):
-        out_obs, h_nodes, h_edges, c_nodes, c_edges, _ = net(nodes[tstep].view(1, numNodes, 2), edges[tstep].view(1, numNodes*numNodes, 3), [nodesPresent[tstep]], [edgesPresent[tstep]], h_nodes, h_edges, c_nodes, c_edges)
+        out_obs, h_nodes, c_nodes, _ = net(nodes[tstep].view(1, numNodes, 2), [nodesPresent[tstep]], h_nodes, c_nodes)
         loss_obs = Gaussian2DLikelihood(out_obs, nodes[tstep+1].view(1, numNodes, 2), [nodesPresent[tstep+1]])
         print loss_obs.data
         raw_input()
@@ -189,17 +186,14 @@ def sample(nodes, edges, nodesPresent, edgesPresent, args, net, true_nodes, true
     ret_nodes = Variable(torch.zeros(args.obs_length + args.pred_length, numNodes, 2), volatile=True).cuda()
     ret_nodes[:args.obs_length, :, :] = nodes.clone()
 
-    ret_edges = Variable(torch.zeros((args.obs_length + args.pred_length), numNodes * numNodes, 3), volatile=True).cuda()
-    ret_edges[:args.obs_length, :, :] = edges.clone()
-
     ret_attn = []
 
     print 'Predicted part'
     # Propagate the predicted length of trajectory (sampling from previous prediction)
     for tstep in range(args.obs_length-1, args.pred_length + args.obs_length-1):
         # TODO Not keeping track of nodes leaving the frame (or new nodes entering the frame, which I don't think we can do anyway)
-        outputs, h_nodes, h_edges, c_nodes, c_edges, attn_w = net(ret_nodes[tstep].view(1, numNodes, 2), ret_edges[tstep].view(1, numNodes*numNodes, 3),
-                                                                  [nodesPresent[args.obs_length-1]], [edgesPresent[args.obs_length-1]], h_nodes, h_edges, c_nodes, c_edges)
+        outputs, h_nodes, c_nodes, attn_w = net(ret_nodes[tstep].view(1, numNodes, 2),
+                                                [nodesPresent[args.obs_length-1]], h_nodes, c_nodes)
         loss_pred = Gaussian2DLikelihoodInference(outputs, true_nodes[tstep + 1].view(1, numNodes, 2), nodesPresent[args.obs_length-1], [true_nodesPresent[tstep + 1]])
         print loss_pred.data
         # print attn_w
@@ -212,10 +206,6 @@ def sample(nodes, edges, nodesPresent, edgesPresent, args, net, true_nodes, true
         
         ret_nodes[tstep + 1, :, 0] = next_x
         ret_nodes[tstep + 1, :, 1] = next_y
-
-        # Compute edges
-        # TODO Currently, assuming edges from the last observed time-step will stay for the entire prediction length
-        ret_edges[tstep + 1, :, :] = compute_edges(ret_nodes.data, tstep + 1, edgesPresent[args.obs_length-1])
 
         # Store computed attention weights
         ret_attn.append(attn_w[0])
