@@ -19,7 +19,7 @@ import numpy as np
 from utils import DataLoader
 from st_graph import ST_GRAPH
 from model import SRNN
-from helper import getCoef, sample_gaussian_2d, compute_edges, get_mean_error
+from helper import getCoef, sample_gaussian_2d, compute_edges, get_mean_error, get_final_error
 from criterion import Gaussian2DLikelihood, Gaussian2DLikelihoodInference
 
 
@@ -121,6 +121,7 @@ def main():
         ret_nodes, ret_attn = sample(obs_nodes, obs_edges, obs_nodesPresent, obs_edgesPresent, sample_args, net, nodes, edges, nodesPresent)
 
         total_error += get_mean_error(ret_nodes[sample_args.obs_length:].data, nodes[sample_args.obs_length:].data, nodesPresent[sample_args.obs_length-1], nodesPresent[sample_args.obs_length:])
+        final_error += get_final_error(ret_nodes[sample_args.obs_length:].data, nodes[sample_args.obs_length:].data, nodesPresent[sample_args.obs_length-1], nodesPresent[sample_args.obs_length:])
 
         end = time.time()
 
@@ -131,6 +132,7 @@ def main():
         stgraph.reset()
 
     print 'Total mean error of the model is ', total_error / dataloader.num_batches
+    print 'Total final error of the model is ', final_error / dataloader.num_batches
 
     print 'Saving results'
     with open(os.path.join(save_directory, 'results.pkl'), 'wb') as f:
