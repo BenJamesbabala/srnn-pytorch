@@ -24,9 +24,9 @@ def main():
     parser = argparse.ArgumentParser()
 
     # RNN size
-    parser.add_argument('--human_node_rnn_size', type=int, default=128,
+    parser.add_argument('--human_node_rnn_size', type=int, default=256,
                         help='Size of Human Node RNN hidden state')
-    parser.add_argument('--human_human_edge_rnn_size', type=int, default=256,
+    parser.add_argument('--human_human_edge_rnn_size', type=int, default=128,
                         help='Size of Human Human Edge RNN hidden state')
 
     # Input and output size
@@ -40,12 +40,8 @@ def main():
     # Embedding size
     parser.add_argument('--human_node_embedding_size', type=int, default=64,
                         help='Embedding size of node features')
-    parser.add_argument('--human_human_edge_embedding_size', type=int, default=256,
+    parser.add_argument('--human_human_edge_embedding_size', type=int, default=64,
                         help='Embedding size of edge features')
-
-    # Decoder size
-    parser.add_argument('--human_node_decoder_size', type=int, default=50,
-                        help='Number of hidden units in the decoder layer')
 
     # Sequence length
     parser.add_argument('--seq_length', type=int, default=20,
@@ -59,13 +55,6 @@ def main():
     parser.add_argument('--num_epochs', type=int, default=50,
                         help='number of epochs')
     
-    parser.add_argument('--patience', type=int, default=30,
-                        help='Patience')
-
-    # Frequency at which the model should be saved parameter
-    parser.add_argument('--save_every', type=int, default=200,
-                        help='save frequency')
-
     # Gradient value at which it should be clipped
     parser.add_argument('--grad_clip', type=float, default=10.,
                         help='clip gradients at this value')
@@ -74,10 +63,10 @@ def main():
                         help='L2 regularization parameter')
 
     # Learning rate parameter
-    parser.add_argument('--learning_rate', type=float, default=0.001,
+    parser.add_argument('--learning_rate', type=float, default=0.002,
                         help='learning rate')
     # Decay rate for the learning rate parameter
-    parser.add_argument('--decay_rate', type=float, default=0.96,
+    parser.add_argument('--decay_rate', type=float, default=0.95,
                         help='decay rate for rmsprop')
 
     # Dropout rate
@@ -109,11 +98,11 @@ def main():
 
 
 def train(args):
-    # datasets = range(4)
+    datasets = range(5)
     # Remove the leave out dataset from the datasets
-    # datasets.remove(args.leaveDataset)
-    datasets = [0, 1, 3]
-    args.leaveDataset = 2
+    datasets.remove(args.leaveDataset)
+    # datasets = [0, 1, 3]
+    # args.leaveDataset = 2
 
     # Construct the DataLoader object
     dataloader = DataLoader(args.batch_size, args.seq_length + 1, datasets, forcePreProcess=True)
@@ -125,16 +114,12 @@ def train(args):
     log_directory = 'log/'
     log_directory += str(args.leaveDataset)+'/'
     if args.noedges:
-        print 'No edge RNNs used'
         log_directory += 'log_noedges'
     elif args.temporal:
-        print 'Only temporal edge RNNs used'
         log_directory += 'log_temporal'
     elif args.temporal_spatial:
-        print 'Both temporal and spatial edge RNNs used'
         log_directory += 'log_temporal_spatial'
     else:
-        print 'Both temporal and spatial edge RNNs used with attention'
         log_directory += 'log_attention'
 
     # Logging file
@@ -169,8 +154,8 @@ def train(args):
     # optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
     # optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
     # optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate)
-    # optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate)
-    optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate, momentum=0.0001, centered=True)
+    optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate)
+    # optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate, momentum=0.0001, centered=True)
     learning_rate = args.learning_rate
     print 'Training begin'
     best_val_loss = 100
@@ -178,8 +163,8 @@ def train(args):
     # Training
     for epoch in range(args.num_epochs):
         # optimizer = torch.optim.RMSprop(net.parameters(), lr=learning_rate)
-        for param_group in optimizer.param_groups:
-            param_group['lr'] = learning_rate
+        #for param_group in optimizer.param_groups:
+        #    param_group['lr'] = learning_rate
 
         learning_rate *= args.decay_rate
         # learning_rate = args.learning_rate / np.sqrt(epoch + 1)

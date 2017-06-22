@@ -38,16 +38,8 @@ class HumanNodeRNN(nn.Module):
 
         self.edge_attention_embed = nn.Linear(self.edge_rnn_size*2, self.embedding_size)
 
-        if args.temporal:
-            # Only temporal edges
-            self.cell = nn.LSTMCell(2*self.embedding_size, self.rnn_size)
-        elif args.noedges:
-            # No edges at all
-            self.cell = nn.LSTMCell(self.embedding_size, self.rnn_size)
-        else:
-            # Both spatial and temporal edges
-            # self.cell = nn.LSTMCell(3*self.embedding_size, self.rnn_size)
-            self.cell = nn.LSTMCell(2*self.embedding_size, self.rnn_size)
+        # Both spatial and temporal edges
+        self.cell = nn.LSTMCell(2*self.embedding_size, self.rnn_size)
 
         self.output_linear = nn.Linear(self.rnn_size, self.output_size)
 
@@ -57,21 +49,12 @@ class HumanNodeRNN(nn.Module):
         encoded_input = self.relu(encoded_input)
         encoded_input = self.dropout(encoded_input)
 
-        if self.args.noedges:
-            # Only the encoded input
-            concat_encoded = encoded_input
-        elif self.args.temporal:
-            # Concat only the temporal embedding
-            h_temporal_embedded = self.relu(self.edge_embed(h_temporal))
-            # h_temporal_embedded = self.dropout(h_temporal_embedded)
-            concat_encoded = torch.cat((encoded_input, h_temporal_embedded), 1)
-        else:
-            # Concat both the embeddings
-            h_edges = torch.cat((h_temporal, h_spatial_other), 1)
-            h_edges_embedded = self.relu(self.edge_attention_embed(h_edges))
-            h_edges_embedded = self.dropout(h_edges_embedded)
-            # h_edges_embedded = self.dropout(h_edges_embedded)
-            concat_encoded = torch.cat((encoded_input, h_edges_embedded), 1)
+        # Concat both the embeddings
+        h_edges = torch.cat((h_temporal, h_spatial_other), 1)
+        h_edges_embedded = self.relu(self.edge_attention_embed(h_edges))
+        h_edges_embedded = self.dropout(h_edges_embedded)
+
+        concat_encoded = torch.cat((encoded_input, h_edges_embedded), 1)
 
         # One-step of LSTM
         h_new, c_new = self.cell(concat_encoded, (h, c))
@@ -129,10 +112,6 @@ class EdgeAttention(nn.Module):
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout(args.dropout)
         
-        self.nonlinearity = nn.Tanh()
-        self.general_weight_matrix = nn.Parameter(torch.Tensor(self.human_human_edge_rnn_size, self.human_human_edge_rnn_size))
-
-        self.general_weight_matrix.data.normal_(0.1, 0.01)
 
     def forward(self, h_node, h_edges):
         '''
@@ -142,30 +121,19 @@ class EdgeAttention(nn.Module):
         num_edges = h_edges.size()[0]
         # Compute attention
         # Apply layers on top of edges and node
-        node_embed = self.relu(self.node_layer(h_node))
-        node_embed = self.dropout(node_embed)
-        node_embed = node_embed.squeeze(0)
+        # node_embed = self.relu(self.node_layer(h_node))
+        # node_embed = self.dropout(node_embed)
+        # node_embed = node_embed.squeeze(0)
+        node_embed = h_node
         # edges_embed = self.edge_layer(h_edges)
         edges_embed = h_edges
 
-        if self.args.attention_type == 'concat':
-            # Concat based attention
-            attn = node_embed.expand(num_edges, self.human_human_edge_rnn_size) + edges_embed
-            attn = self.nonlinearity(attn)
-            attn = torch.sum(attn, dim=1).squeeze(1)
-            # Variable length # NOTE multiplying the unnormalized weights with number of edges for now
-            attn = torch.mul(attn, num_edges)
-        elif self.args.attention_type == 'dot':
-            # Dot based attention
-            attn = torch.mv(edges_embed, node_embed)
-            # Variable length # NOTE multiplying the unnormalized weights with number of edges for now
-            temperature = num_edges
-            attn = torch.mul(attn, temperature)
-        else:
-            # General attention
-            attn = torch.mm(edges_embed, self.general_weight_matrix)
-            attn = torch.mv(attn, node_embed)
-
+        # Dot based attention
+        attn = torch.mv(edges_embed, node_embed)
+        # Variable length # NOTE multiplying the unnormalized weights with number of edges for now
+        temperature = num_edges / np.sqrt(self.human_human_edge_rnn_size)
+        attn = torch.mul(attn, temperature)
+        
         attn = torch.nn.functional.softmax(attn)
         # Compute weighted value
         weighted_value = torch.mv(torch.t(h_edges), attn)
@@ -305,8 +273,9 @@ class SRNN(nn.Module):
                             node_others = [x[1] for x in edgeIDs if x[0] == node and x[0] != x[1]]
                             if torch.numel(l) == 0:
                                 continue
-                            ind = Variable(torch.LongTensor([node]).cuda())
-                            h_node = torch.index_select(hidden_states_node_RNNs, 0, ind)
+                            # ind = Variable(torch.LongTensor([node]).cuda())
+                            # h_node = torch.index_select(hidden_states_node_RNNs, 0, ind)
+                            h_node = hidden_states_nodes_from_edges_temporal[node]
                             hidden_attn_weighted, attn_w = self.attn(h_node, h_spatial[l])
                             attn_weights[framenum][node] = (attn_w.data.cpu().numpy(), node_others)
                             hidden_states_nodes_from_edges_spatial[node] = hidden_attn_weighted
