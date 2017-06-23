@@ -102,6 +102,7 @@ def main():
 
     # Variable to maintain total error
     total_error = 0
+    final_error = 0
 
     for batch in range(dataloader.num_batches):
         start = time.time()
@@ -202,7 +203,7 @@ def sample(nodes, edges, nodesPresent, edgesPresent, args, net, true_nodes, true
         loss_pred = Gaussian2DLikelihoodInference(outputs, true_nodes[tstep + 1].view(1, numNodes, 2), nodesPresent[args.obs_length-1], [true_nodesPresent[tstep + 1]])
         #print loss_pred.data
         # print attn_w
-        #raw_input()
+        # raw_input()
 
         # Sample from o
         # mux, ... are tensors of shape 1 x numNodes

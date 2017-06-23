@@ -55,7 +55,7 @@ def main():
                         help='Batch size')
 
     # Number of epochs
-    parser.add_argument('--num_epochs', type=int, default=50,
+    parser.add_argument('--num_epochs', type=int, default=100,
                         help='number of epochs')
     
     # Gradient value at which it should be clipped
@@ -156,8 +156,8 @@ def train(args):
 
     # optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
     # optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
-    # optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate)
-    optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate)
+    optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate)
+    # optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate)
     # optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate, momentum=0.0001, centered=True)
     learning_rate = args.learning_rate
     print 'Training begin'
@@ -166,8 +166,8 @@ def train(args):
     # Training
     for epoch in range(args.num_epochs):
         # optimizer = torch.optim.RMSprop(net.parameters(), lr=learning_rate)
-        #for param_group in optimizer.param_groups:
-        #    param_group['lr'] = learning_rate
+        for param_group in optimizer.param_groups:
+            param_group['lr'] = learning_rate
 
         learning_rate *= args.decay_rate
         # learning_rate = args.learning_rate / np.sqrt(epoch + 1)
