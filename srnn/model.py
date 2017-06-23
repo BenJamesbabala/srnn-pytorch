@@ -107,10 +107,13 @@ class EdgeAttention(nn.Module):
 
         self.human_human_edge_rnn_size = args.human_human_edge_rnn_size
         self.human_node_rnn_size = args.human_node_rnn_size
+        self.attention_size = args.attention_size
 
-        self.node_layer = nn.Linear(self.human_node_rnn_size, self.human_human_edge_rnn_size)
-        self.relu = nn.ReLU()
-        self.dropout = nn.Dropout(args.dropout)
+        self.node_layer = nn.Linear(self.human_human_edge_rnn_size, self.attention_size)
+        # self.relu = nn.ReLU()
+        # self.dropout = nn.Dropout(args.dropout)
+
+        self.edge_layer = nn.Linear(self.human_human_edge_rnn_size, self.attention_size)
         
 
     def forward(self, h_node, h_edges):
@@ -123,15 +126,17 @@ class EdgeAttention(nn.Module):
         # Apply layers on top of edges and node
         # node_embed = self.relu(self.node_layer(h_node))
         # node_embed = self.dropout(node_embed)
-        # node_embed = node_embed.squeeze(0)
-        node_embed = h_node
-        # edges_embed = self.edge_layer(h_edges)
-        edges_embed = h_edges
+        node_embed = self.node_layer(h_node)
+        node_embed = node_embed.squeeze(0)
+
+        edges_embed = self.edge_layer(h_edges)
+        # edges_embed = h_edges
 
         # Dot based attention
         attn = torch.mv(edges_embed, node_embed)
         # Variable length # NOTE multiplying the unnormalized weights with number of edges for now
-        temperature = num_edges / np.sqrt(self.human_human_edge_rnn_size)
+        # temperature = 1 / np.sqrt(self.attention_size)
+        temperature = num_edges
         attn = torch.mul(attn, temperature)
         
         attn = torch.nn.functional.softmax(attn)
@@ -276,7 +281,7 @@ class SRNN(nn.Module):
                             # ind = Variable(torch.LongTensor([node]).cuda())
                             # h_node = torch.index_select(hidden_states_node_RNNs, 0, ind)
                             h_node = hidden_states_nodes_from_edges_temporal[node]
-                            hidden_attn_weighted, attn_w = self.attn(h_node, h_spatial[l])
+                            hidden_attn_weighted, attn_w = self.attn(h_node.view(1, -1), h_spatial[l])
                             attn_weights[framenum][node] = (attn_w.data.cpu().numpy(), node_others)
                             hidden_states_nodes_from_edges_spatial[node] = hidden_attn_weighted
 

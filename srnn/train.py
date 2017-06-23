@@ -43,6 +43,9 @@ def main():
     parser.add_argument('--human_human_edge_embedding_size', type=int, default=64,
                         help='Embedding size of edge features')
 
+    parser.add_argument('--attention_size', type=int, default=64,
+                        help='Attention size')
+
     # Sequence length
     parser.add_argument('--seq_length', type=int, default=20,
                         help='Sequence length')
