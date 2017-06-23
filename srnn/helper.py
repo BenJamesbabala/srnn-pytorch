@@ -201,7 +201,7 @@ def get_final_error(ret_nodes, nodes, assumedNodesPresent, trueNodesPresent):
     Error : Mean final euclidean distance between predicted trajectory and the true trajectory
     '''
     pred_length = ret_nodes.size()[0]
-    error = torch.zeros(pred_length).cuda()
+    error = 0
     counter = 0
 
     # Last time-step
@@ -214,10 +214,10 @@ def get_final_error(ret_nodes, nodes, assumedNodesPresent, trueNodesPresent):
         pred_pos = ret_nodes[tstep, nodeID, :]
         true_pos = nodes[tstep, nodeID, :]
         
-        error[tstep] += torch.norm(pred_pos - true_pos, p=2)
+        error += torch.norm(pred_pos - true_pos, p=2)
         counter += 1
         
     if counter != 0:
-        error[tstep] = error[tstep] / counter
+        error = error / counter
             
-    return torch.mean(error)
+    return error
