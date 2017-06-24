@@ -136,7 +136,7 @@ class EdgeAttention(nn.Module):
         attn = torch.mv(edges_embed, node_embed)
         # Variable length # NOTE multiplying the unnormalized weights with number of edges for now
         # temperature = 1 / np.sqrt(self.attention_size)
-        temperature = num_edges
+        temperature = num_edges / np.sqrt(self.attention_size)
         attn = torch.mul(attn, temperature)
         
         attn = torch.nn.functional.softmax(attn)

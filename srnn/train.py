@@ -55,7 +55,7 @@ def main():
                         help='Batch size')
 
     # Number of epochs
-    parser.add_argument('--num_epochs', type=int, default=100,
+    parser.add_argument('--num_epochs', type=int, default=150,
                         help='number of epochs')
     
     # Gradient value at which it should be clipped
@@ -69,7 +69,7 @@ def main():
     parser.add_argument('--learning_rate', type=float, default=0.002,
                         help='learning rate')
     # Decay rate for the learning rate parameter
-    parser.add_argument('--decay_rate', type=float, default=0.95,
+    parser.add_argument('--decay_rate', type=float, default=0.94,
                         help='decay rate for rmsprop')
 
     # Dropout rate
