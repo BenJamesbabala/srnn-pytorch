@@ -26,7 +26,7 @@ def main():
     # RNN size
     parser.add_argument('--human_node_rnn_size', type=int, default=256,
                         help='Size of Human Node RNN hidden state')
-    parser.add_argument('--human_human_edge_rnn_size', type=int, default=256,
+    parser.add_argument('--human_human_edge_rnn_size', type=int, default=128,
                         help='Size of Human Human Edge RNN hidden state')
 
     # Input and output size
@@ -38,9 +38,9 @@ def main():
                         help='Dimension of the node output')
 
     # Embedding size
-    parser.add_argument('--human_node_embedding_size', type=int, default=64,
+    parser.add_argument('--human_node_embedding_size', type=int, default=128,
                         help='Embedding size of node features')
-    parser.add_argument('--human_human_edge_embedding_size', type=int, default=128,
+    parser.add_argument('--human_human_edge_embedding_size', type=int, default=64,
                         help='Embedding size of edge features')
 
     parser.add_argument('--attention_size', type=int, default=64,
