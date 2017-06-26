@@ -104,11 +104,13 @@ class DataLoader():
             # Initialize the list of numpy arrays for the current dataset
             valid_frame_data.append([])
 
-            if directory == './data/eth/univ':
-                skip = 6
-            else:
-                skip = 10
+            # if directory == './data/eth/univ':
+            #    skip = 6
+            #else:
+            #    skip = 10
             # skip = 3
+
+            skip = 5
 
             for ind, frame in enumerate(frameList):
 

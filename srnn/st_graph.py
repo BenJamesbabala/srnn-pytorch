@@ -129,7 +129,8 @@ class ST_GRAPH():
         list_of_nodes = {}
 
         retNodes = np.zeros((self.seq_length, numNodes, 2))
-        retEdges = np.zeros((self.seq_length, numNodes*numNodes, 3))  # Diagonal contains temporal edges
+        # retEdges = np.zeros((self.seq_length, numNodes*numNodes, 3))  # Diagonal contains temporal edges
+        retEdges = np.zeros((self.seq_length, numNodes*numNodes, 2))  # Diagonal contains temporal edges
         retNodePresent = [[] for c in xrange(self.seq_length)]
         retEdgePresent = [[] for c in xrange(self.seq_length)]
 
@@ -150,8 +151,8 @@ class ST_GRAPH():
                 for framenum in range(self.seq_length):
                     if framenum in edge.edge_pos_list:
                         retEdgePresent[framenum].append((i, j))
-                        # retEdges[framenum, i*(numNodes) + j, :] = getVector(edge.edge_pos_list[framenum])
-                        retEdges[framenum, i*numNodes + j, :] = getMagnitudeAndDirection(edge.edge_pos_list[framenum])
+                        retEdges[framenum, i*(numNodes) + j, :] = getVector(edge.edge_pos_list[framenum])
+                        # retEdges[framenum, i*numNodes + j, :] = getMagnitudeAndDirection(edge.edge_pos_list[framenum])
             else:
                 # Spatial edge
                 for framenum in range(self.seq_length):
@@ -160,9 +161,10 @@ class ST_GRAPH():
                         retEdgePresent[framenum].append((j, i))
                         # the position returned is a tuple of tuples
 
-                        retEdges[framenum, i*(numNodes) + j, :] = getMagnitudeAndDirection(edge.edge_pos_list[framenum])
-                        retEdges[framenum, j*numNodes + i, 0] = np.copy(retEdges[framenum, i*(numNodes) + j, 0])
-                        retEdges[framenum, j*numNodes + i, 1:3] = -np.copy(retEdges[framenum, i*(numNodes) + j, 1:3])
+                        retEdges[framenum, i*numNodes + j, :] = getVector(edge.edge_pos_list[framenum])
+                        # retEdges[framenum, i*(numNodes) + j, :] = getMagnitudeAndDirection(edge.edge_pos_list[framenum])
+                        # retEdges[framenum, j*numNodes + i, 0] = np.copy(retEdges[framenum, i*(numNodes) + j, 0])
+                        retEdges[framenum, j*numNodes + i, :] = -np.copy(retEdges[framenum, i*(numNodes) + j, :])
 
         return retNodes, retEdges, retNodePresent, retEdgePresent
 

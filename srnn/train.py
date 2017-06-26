@@ -32,7 +32,7 @@ def main():
     # Input and output size
     parser.add_argument('--human_node_input_size', type=int, default=2,
                         help='Dimension of the node features')
-    parser.add_argument('--human_human_edge_input_size', type=int, default=3,
+    parser.add_argument('--human_human_edge_input_size', type=int, default=2,
                         help='Dimension of the edge features')
     parser.add_argument('--human_node_output_size', type=int, default=5,
                         help='Dimension of the node output')
@@ -47,15 +47,15 @@ def main():
                         help='Attention size')
 
     # Sequence length
-    parser.add_argument('--seq_length', type=int, default=20,
+    parser.add_argument('--seq_length', type=int, default=10,
                         help='Sequence length')
 
     # Batch size
-    parser.add_argument('--batch_size', type=int, default=32,
+    parser.add_argument('--batch_size', type=int, default=8,
                         help='Batch size')
 
     # Number of epochs
-    parser.add_argument('--num_epochs', type=int, default=150,
+    parser.add_argument('--num_epochs', type=int, default=200,
                         help='number of epochs')
     
     # Gradient value at which it should be clipped
@@ -66,10 +66,10 @@ def main():
                         help='L2 regularization parameter')
 
     # Learning rate parameter
-    parser.add_argument('--learning_rate', type=float, default=0.002,
+    parser.add_argument('--learning_rate', type=float, default=0.003,
                         help='learning rate')
     # Decay rate for the learning rate parameter
-    parser.add_argument('--decay_rate', type=float, default=0.94,
+    parser.add_argument('--decay_rate', type=float, default=0.96,
                         help='decay rate for rmsprop')
 
     # Dropout rate
@@ -104,8 +104,8 @@ def train(args):
     datasets = range(5)
     # Remove the leave out dataset from the datasets
     datasets.remove(args.leaveDataset)
-    # datasets = [0, 1, 3]
-    # args.leaveDataset = 2
+    # datasets = [0, 1]
+    # args.leaveDataset = 0
 
     # Construct the DataLoader object
     dataloader = DataLoader(args.batch_size, args.seq_length + 1, datasets, forcePreProcess=True)
@@ -168,7 +168,7 @@ def train(args):
         # optimizer = torch.optim.RMSprop(net.parameters(), lr=learning_rate)
         for param_group in optimizer.param_groups:
 	    param_group['lr'] = learning_rate
-
+    
         learning_rate *= args.decay_rate
         # learning_rate = args.learning_rate / np.sqrt(epoch + 1)
 

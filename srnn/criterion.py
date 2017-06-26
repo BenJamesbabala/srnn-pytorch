@@ -24,6 +24,9 @@ def Gaussian2DLikelihood(outputs, targets, nodesPresent):
     # Extract mean, std devs and correlation
     mux, muy, sx, sy, corr = getCoef(outputs)
 
+    # print mux, muy, sx, sy, targets
+    # raw_input()
+
     # Compute factors
     normx = targets[:, :, 0] - mux
     normy = targets[:, :, 1] - muy
