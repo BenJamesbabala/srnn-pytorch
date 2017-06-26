@@ -68,7 +68,7 @@ def main():
                         help='L2 regularization parameter')
 
     # Learning rate parameter
-    parser.add_argument('--learning_rate', type=float, default=0.003,
+    parser.add_argument('--learning_rate', type=float, default=0.001,
                         help='learning rate')
     # Decay rate for the learning rate parameter
     parser.add_argument('--decay_rate', type=float, default=0.96,
@@ -168,10 +168,10 @@ def train(args):
     # Training
     for epoch in range(args.num_epochs):
         # optimizer = torch.optim.RMSprop(net.parameters(), lr=learning_rate)
-        for param_group in optimizer.param_groups:
-	    param_group['lr'] = learning_rate
+        # for param_group in optimizer.param_groups:
+	#    param_group['lr'] = learning_rate
     
-        learning_rate *= args.decay_rate
+        # learning_rate *= args.decay_rate
         # learning_rate = args.learning_rate / np.sqrt(epoch + 1)
 
         dataloader.reset_batch_pointer(valid=False)

@@ -27,10 +27,10 @@ def main():
 
     parser = argparse.ArgumentParser()
     # Observed length of the trajectory parameter
-    parser.add_argument('--obs_length', type=int, default=5,
+    parser.add_argument('--obs_length', type=int, default=8,
                         help='Observed length of the trajectory')
     # Predicted length of the trajectory parameter
-    parser.add_argument('--pred_length', type=int, default=2,
+    parser.add_argument('--pred_length', type=int, default=12,
                         help='Predicted length of the trajectory')
     # Test dataset
     parser.add_argument('--test_dataset', type=int, default=3,
@@ -181,9 +181,9 @@ def sample(nodes, edges, nodesPresent, edgesPresent, args, net, true_nodes, true
     # Propagate the observed length of the trajectory
     for tstep in range(args.obs_length-1):
         out_obs, h_nodes, h_edges, c_nodes, c_edges, _ = net(nodes[tstep].view(1, numNodes, 2), edges[tstep].view(1, numNodes*numNodes, 2), [nodesPresent[tstep]], [edgesPresent[tstep]], h_nodes, h_edges, c_nodes, c_edges)
-        loss_obs = Gaussian2DLikelihood(out_obs, nodes[tstep+1].view(1, numNodes, 2), [nodesPresent[tstep+1]])
-        print loss_obs.data
-        raw_input()
+        # loss_obs = Gaussian2DLikelihood(out_obs, nodes[tstep+1].view(1, numNodes, 2), [nodesPresent[tstep+1]])
+        # print loss_obs.data
+        # raw_input()
 
     # Initialize the return data structures
     ret_nodes = Variable(torch.zeros(args.obs_length + args.pred_length, numNodes, 2), volatile=True).cuda()

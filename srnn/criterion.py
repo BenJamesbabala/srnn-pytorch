@@ -10,6 +10,7 @@ Date : 30th March 2017
 import torch
 import numpy as np
 from helper import getCoef
+from torch.autograd import Variable
 
 
 def Gaussian2DLikelihood(outputs, targets, nodesPresent, pred_length):
@@ -93,7 +94,7 @@ def Gaussian2DLikelihoodInference(outputs, targets, assumedNodesPresent, nodesPr
 
     result = -torch.log(torch.clamp(result, min=epsilon))
 
-    loss = 0
+    loss = Variable(torch.zeros(1).cuda())
     counter = 0
 
     for framenum in range(outputs.size()[0]):
