@@ -194,16 +194,16 @@ def sample(nodes, edges, nodesPresent, edgesPresent, args, net, true_nodes, true
 
     ret_attn = []
 
-    print 'Predicted part'
+    # print 'Predicted part'
     # Propagate the predicted length of trajectory (sampling from previous prediction)
     for tstep in range(args.obs_length-1, args.pred_length + args.obs_length-1):
         # TODO Not keeping track of nodes leaving the frame (or new nodes entering the frame, which I don't think we can do anyway)
         outputs, h_nodes, h_edges, c_nodes, c_edges, attn_w = net(ret_nodes[tstep].view(1, numNodes, 2), ret_edges[tstep].view(1, numNodes*numNodes, 2),
                                                                   [nodesPresent[args.obs_length-1]], [edgesPresent[args.obs_length-1]], h_nodes, h_edges, c_nodes, c_edges)
         loss_pred = Gaussian2DLikelihoodInference(outputs, true_nodes[tstep + 1].view(1, numNodes, 2), nodesPresent[args.obs_length-1], [true_nodesPresent[tstep + 1]])
-        print loss_pred.data
+        # print loss_pred.data
         # print attn_w
-        raw_input()
+        # raw_input()
 
         # Sample from o
         # mux, ... are tensors of shape 1 x numNodes

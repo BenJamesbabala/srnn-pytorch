@@ -111,7 +111,7 @@ class DataLoader():
             #    skip = 10
             # skip = 3
 
-            skip = 10
+            skip = 5
 
             for ind, frame in enumerate(frameList):
 
