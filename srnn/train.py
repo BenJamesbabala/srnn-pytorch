@@ -47,9 +47,9 @@ def main():
                         help='Attention size')
 
     # Sequence length
-    parser.add_argument('--seq_length', type=int, default=20,
+    parser.add_argument('--seq_length', type=int, default=10,
                         help='Sequence length')
-    parser.add_argument('--pred_length', type=int, default=12,
+    parser.add_argument('--pred_length', type=int, default=4,
                         help='Predicted sequence length')
 
     # Batch size

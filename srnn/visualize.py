@@ -75,21 +75,21 @@ def plot_trajectories(true_trajs, pred_trajs, nodesPresent, obs_length, name, pl
         pred_x = [(p[0]+1)/2*height for p in pred_traj_ped]
         pred_y = [(p[1]+1)/2*width for p in pred_traj_ped]
 
-        plt.plot(true_x, true_y, color=c, linestyle='solid', marker='o')
-        plt.plot(pred_x, pred_y, color=c, linestyle='dashed', marker='x')
+        plt.plot(true_x, true_y, color='red', linestyle='solid', marker='o')
+        plt.plot(pred_x, pred_y, color='red', linestyle='dashed', marker='x')
 
     if not withBackground:
         plt.ylim((1, 0))
         plt.xlim((0, 1))
 
-    # plt.show()
+    plt.show()
     if withBackground:
         plt.savefig('plot_with_background/'+name+'.png')
     else:
         plt.savefig(plot_directory+'/'+name+'.png')
 
     plt.gcf().clear()
-    plt.close()
+    plt.close('all')
 
 
 def main():
