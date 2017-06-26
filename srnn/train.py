@@ -47,8 +47,10 @@ def main():
                         help='Attention size')
 
     # Sequence length
-    parser.add_argument('--seq_length', type=int, default=10,
+    parser.add_argument('--seq_length', type=int, default=20,
                         help='Sequence length')
+    parser.add_argument('--pred_length', type=int, default=12,
+                        help='Predicted sequence length')
 
     # Batch size
     parser.add_argument('--batch_size', type=int, default=8,
@@ -214,7 +216,7 @@ def train(args):
                                              cell_states_node_RNNs, cell_states_edge_RNNs)
 
                 # Compute loss
-                loss = Gaussian2DLikelihood(outputs, nodes[1:], nodesPresent[1:])
+                loss = Gaussian2DLikelihood(outputs, nodes[1:], nodesPresent[1:], args.pred_length)
 
                 loss_batch += loss.data[0]
 
@@ -284,7 +286,7 @@ def train(args):
                                              cell_states_node_RNNs, cell_states_edge_RNNs)                
 
                 # Compute loss
-                loss = Gaussian2DLikelihood(outputs, nodes[1:], nodesPresent[1:])
+                loss = Gaussian2DLikelihood(outputs, nodes[1:], nodesPresent[1:], args.pred_length)
 
                 loss_batch += loss.data[0]
 

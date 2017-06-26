@@ -28,6 +28,7 @@ class DataLoader():
                           './data/ucy/zara/zara01', './data/ucy/zara/zara02',
                           './data/ucy/univ']
         self.used_data_dirs = [self.data_dirs[x] for x in datasets]
+        self.test_data_dirs = [self.data_dirs[x] for x in range(5) if x not in datasets]
         self.infer = infer
 
         # Number of datasets
@@ -110,7 +111,7 @@ class DataLoader():
             #    skip = 10
             # skip = 3
 
-            skip = 5
+            skip = 10
 
             for ind, frame in enumerate(frameList):
 

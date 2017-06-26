@@ -12,7 +12,7 @@ import numpy as np
 from helper import getCoef
 
 
-def Gaussian2DLikelihood(outputs, targets, nodesPresent):
+def Gaussian2DLikelihood(outputs, targets, nodesPresent, pred_length):
     '''
     Parameters:
 
@@ -20,6 +20,9 @@ def Gaussian2DLikelihood(outputs, targets, nodesPresent):
     targets: Torch variable containing tensor of shape seq_length x numNodes x 1 x input_size
     nodesPresent : A list of lists, of size seq_length. Each list contains the nodeIDs that are present in the frame
     '''
+
+    seq_length = outputs.size()[0]
+    obs_length = seq_length - pred_length
 
     # Extract mean, std devs and correlation
     mux, muy, sx, sy, corr = getCoef(outputs)
@@ -51,7 +54,7 @@ def Gaussian2DLikelihood(outputs, targets, nodesPresent):
     loss = 0
     counter = 0
 
-    for framenum in range(outputs.size()[0]):
+    for framenum in range(obs_length, seq_length):
         nodeIDs = nodesPresent[framenum]
 
         for nodeID in nodeIDs:
