@@ -83,7 +83,7 @@ class DataLoader():
         dataset_index = 0
 
         # For each dataset
-        for directory in data_dirs:
+        for ind_directory, directory in enumerate(data_dirs):
             # define path of the csv file of the current dataset
             # file_path = os.path.join(directory, 'pixel_pos.csv')
             file_path = os.path.join(directory, 'pixel_pos_interpolate.csv')
@@ -104,7 +104,20 @@ class DataLoader():
             # Initialize the list of numpy arrays for the current dataset
             valid_frame_data.append([])
 
+            if directory == './data/eth/univ':
+                skip = 6
+            else:
+                skip = 10
+            # skip = 3
+
             for ind, frame in enumerate(frameList):
+
+                ## NOTE CHANGE
+                if ind % skip != 0:
+                    # Skip every n frames
+                    continue
+
+                
                 # Extract all pedestrians in current frame
                 pedsInFrame = data[:, data[0, :] == frame]
 
@@ -166,12 +179,14 @@ class DataLoader():
             print 'Training data from dataset', dataset, ':', len(all_frame_data)
             print 'Validation data from dataset', dataset, ':', len(valid_frame_data)
             # Increment the counter with the number of sequences in the current dataset
-            counter += int(len(all_frame_data) / (self.seq_length+2))
-            valid_counter += int(len(valid_frame_data) / (self.seq_length+2))
+            counter += int(len(all_frame_data) / (self.seq_length))
+            valid_counter += int(len(valid_frame_data) / (self.seq_length))
 
         # Calculate the number of batches
         self.num_batches = int(counter/self.batch_size)
         self.valid_num_batches = int(valid_counter/self.batch_size)
+        print 'Total number of training batches:', self.num_batches * 2
+        print 'Total number of validation batches:', self.valid_num_batches
         # On an average, we need twice the number of batches to cover the data
         # due to randomization introduced
         self.num_batches = self.num_batches * 2
