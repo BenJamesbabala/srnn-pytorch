@@ -116,7 +116,7 @@ def compute_edges(nodes, tstep, edgesPresent):
     Contains vectors representing the edges
     '''
     numNodes = nodes.size()[1]
-    edges = (torch.zeros(numNodes * numNodes, 3)).cuda()
+    edges = (torch.zeros(numNodes * numNodes, 2)).cuda()
     for edgeID in edgesPresent:
         nodeID_a = edgeID[0]
         nodeID_b = edgeID[1]
@@ -126,15 +126,15 @@ def compute_edges(nodes, tstep, edgesPresent):
             pos_a = nodes[tstep - 1, nodeID_a, :]
             pos_b = nodes[tstep, nodeID_b, :]
 
-            # edges[nodeID_a * numNodes + nodeID_b, :] = pos_a - pos_b
-            edges[nodeID_a * numNodes + nodeID_b, :] = getMagnitudeAndDirection(pos_a, pos_b)
+            edges[nodeID_a * numNodes + nodeID_b, :] = pos_a - pos_b
+            # edges[nodeID_a * numNodes + nodeID_b, :] = getMagnitudeAndDirection(pos_a, pos_b)
         else:
             # Spatial edge
             pos_a = nodes[tstep, nodeID_a, :]
             pos_b = nodes[tstep, nodeID_b, :]
 
-            # edges[nodeID_a * numNodes + nodeID_b, :] = pos_a - pos_b
-            edges[nodeID_a * numNodes + nodeID_b, :] = getMagnitudeAndDirection(pos_a, pos_b)
+            edges[nodeID_a * numNodes + nodeID_b, :] = pos_a - pos_b
+            # edges[nodeID_a * numNodes + nodeID_b, :] = getMagnitudeAndDirection(pos_a, pos_b)
 
     return edges
 
