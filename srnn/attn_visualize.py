@@ -62,7 +62,8 @@ def plot_attention(true_pos_nodes, pred_pos_nodes, nodes_present, observed_lengt
 
 
 def main():
-    save_directory = 'save/save_attention'
+    save_directory = 'save/0/save_attention'
+    # save_directory += str(0) + '/'
     plot_directory = 'plot/plot_attention_viz'
 
     f = open(save_directory+'/results.pkl', 'rb')
