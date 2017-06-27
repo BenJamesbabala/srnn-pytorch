@@ -57,7 +57,7 @@ def main():
                         help='Batch size')
 
     # Number of epochs
-    parser.add_argument('--num_epochs', type=int, default=100,
+    parser.add_argument('--num_epochs', type=int, default=200,
                         help='number of epochs')
     
     # Gradient value at which it should be clipped
@@ -172,8 +172,8 @@ def train(args):
         if epoch < 20:
             return 0
         else:
-            return (epoch)/500.
-            # return 0
+            # return (epoch)/500.
+            return 0
     
     # Training
     for epoch in range(args.num_epochs):
