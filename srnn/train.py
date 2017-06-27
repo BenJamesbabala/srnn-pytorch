@@ -47,9 +47,9 @@ def main():
                         help='Attention size')
 
     # Sequence length
-    parser.add_argument('--seq_length', type=int, default=10,
+    parser.add_argument('--seq_length', type=int, default=20,
                         help='Sequence length')
-    parser.add_argument('--pred_length', type=int, default=4,
+    parser.add_argument('--pred_length', type=int, default=12,
                         help='Predicted sequence length')
 
     # Batch size
@@ -57,7 +57,7 @@ def main():
                         help='Batch size')
 
     # Number of epochs
-    parser.add_argument('--num_epochs', type=int, default=200,
+    parser.add_argument('--num_epochs', type=int, default=300,
                         help='number of epochs')
     
     # Gradient value at which it should be clipped
@@ -75,7 +75,7 @@ def main():
                         help='decay rate for rmsprop')
 
     # Dropout rate
-    parser.add_argument('--dropout', type=float, default=0.1,
+    parser.add_argument('--dropout', type=float, default=0,
                         help='Dropout probability')
 
     # The leave out dataset
@@ -106,14 +106,14 @@ def train(args):
     datasets = range(5)
     # Remove the leave out dataset from the datasets
     datasets.remove(args.leaveDataset)
-    # datasets = [0, 1]
+    # datasets = [0]
     # args.leaveDataset = 0
 
     # Construct the DataLoader object
     dataloader = DataLoader(args.batch_size, args.seq_length + 1, datasets, forcePreProcess=True)
 
     # Construct the ST-graph object
-    stgraph = ST_GRAPH(args.batch_size, args.seq_length + 1)
+    stgraph = ST_GRAPH(1, args.seq_length + 1)
 
     # Log directory
     log_directory = 'log/'
@@ -165,6 +165,15 @@ def train(args):
     print 'Training begin'
     best_val_loss = 100
     best_epoch = 0
+
+
+    # Scheduled sampling stuff
+    def scheduled_sampling_prob(epoch):
+        if epoch < 10:
+            return 0
+        else:
+            return (epoch)/400.
+    
     # Training
     for epoch in range(args.num_epochs):
         # optimizer = torch.optim.RMSprop(net.parameters(), lr=learning_rate)
@@ -177,6 +186,10 @@ def train(args):
         dataloader.reset_batch_pointer(valid=False)
         loss_epoch = 0
 
+        sprob = scheduled_sampling_prob(epoch)
+        if sprob > 0:
+            print "Scheduled sampling probability", sprob
+
         # Training
         for batch in range(dataloader.num_batches):
             start = time.time()
@@ -185,13 +198,16 @@ def train(args):
             x, _, d = dataloader.next_batch(randomUpdate=True)
 
             # Read the st graph from data
-            stgraph.readGraph(x)
+            # stgraph.readGraph(x)
 
             # Loss for this batch
             loss_batch = 0
 
             for sequence in range(dataloader.batch_size):
-                nodes, edges, nodesPresent, edgesPresent = stgraph.getSequence(sequence)
+                stgraph.readGraph([x[sequence]])
+                
+                # nodes, edges, nodesPresent, edgesPresent = stgraph.getSequence(sequence)
+                nodes, edges, nodesPresent, edgesPresent = stgraph.getSequence(0)
 
                 # Convert to cuda variables
                 nodes = Variable(torch.from_numpy(nodes).float()).cuda()
@@ -213,9 +229,9 @@ def train(args):
                 # Forward prop
                 outputs, _, _, _, _, _ = net(nodes[:args.seq_length], edges[:args.seq_length], nodesPresent[:-1], edgesPresent[:-1],
                                              hidden_states_node_RNNs, hidden_states_edge_RNNs,
-                                             cell_states_node_RNNs, cell_states_edge_RNNs)
+                                             cell_states_node_RNNs, cell_states_edge_RNNs, sprob)
 
-                # Compute loss
+                # Compute loss                
                 loss = Gaussian2DLikelihood(outputs, nodes[1:], nodesPresent[1:], args.pred_length)
 
                 loss_batch += loss.data[0]
@@ -229,7 +245,9 @@ def train(args):
                 # Update parameters
                 optimizer.step()
 
-            stgraph.reset()
+                stgraph.reset()
+
+            # stgraph.reset()
             end = time.time()
             loss_batch = loss_batch / dataloader.batch_size
             loss_epoch += loss_batch
@@ -262,13 +280,15 @@ def train(args):
             x, _, d = dataloader.next_valid_batch(randomUpdate=False)
 
             # Read the st graph from data
-            stgraph.readGraph(x)
+            # stgraph.readGraph(x)
 
             # Loss for this batch
             loss_batch = 0
 
             for sequence in range(dataloader.batch_size):
-                nodes, edges, nodesPresent, edgesPresent = stgraph.getSequence(sequence)
+                stgraph.readGraph([x[sequence]])
+                # nodes, edges, nodesPresent, edgesPresent = stgraph.getSequence(sequence)
+                nodes, edges, nodesPresent, edgesPresent = stgraph.getSequence(0)
 
                 # Convert to cuda variables
                 nodes = Variable(torch.from_numpy(nodes).float()).cuda()
@@ -283,14 +303,16 @@ def train(args):
 
                 outputs, _, _, _, _, _ = net(nodes[:args.seq_length], edges[:args.seq_length], nodesPresent[:-1], edgesPresent[:-1],
                                              hidden_states_node_RNNs, hidden_states_edge_RNNs,
-                                             cell_states_node_RNNs, cell_states_edge_RNNs)                
+                                             cell_states_node_RNNs, cell_states_edge_RNNs, sprob)                
 
                 # Compute loss
                 loss = Gaussian2DLikelihood(outputs, nodes[1:], nodesPresent[1:], args.pred_length)
 
                 loss_batch += loss.data[0]
 
-            stgraph.reset()
+                stgraph.reset()
+
+            # stgraph.reset()
             loss_batch = loss_batch / dataloader.batch_size
             loss_epoch += loss_batch
 

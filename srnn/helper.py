@@ -7,6 +7,7 @@ Date : 3rd April 2017
 '''
 import numpy as np
 import torch
+from torch.autograd import Variable
 
 
 def getVector(pos_list):
@@ -220,3 +221,73 @@ def get_final_error(ret_nodes, nodes, assumedNodesPresent, trueNodesPresent):
         error = error / counter
             
     return error
+
+def sample_gaussian_2d_batch(outputs, nodesPresent, edgesPresent, nodes_prev_tstep):
+    mux, muy, sx, sy, corr = getCoef_train(outputs)
+
+    
+    next_x, next_y = sample_gaussian_2d_train(mux.data, muy.data, sx.data, sy.data, corr.data, nodesPresent)
+
+    nodes = torch.zeros(outputs.size()[0], 2)
+    nodes[:, 0] = next_x
+    nodes[:, 1] = next_y
+
+    nodes = Variable(nodes.cuda())
+
+    edges = compute_edges_train(nodes, edgesPresent, nodes_prev_tstep)
+
+    return nodes, edges
+
+
+def compute_edges_train(nodes, edgesPresent, nodes_prev_tstep):
+    numNodes = nodes.size()[0]
+    edges = Variable((torch.zeros(numNodes * numNodes, 2)).cuda())
+    for edgeID in edgesPresent:
+        nodeID_a = edgeID[0]
+        nodeID_b = edgeID[1]
+
+        if nodeID_a == nodeID_b:
+            # Temporal edge
+            pos_a = nodes_prev_tstep[nodeID_a, :]
+            pos_b = nodes[nodeID_b, :]
+
+            edges[nodeID_a * numNodes + nodeID_b, :] = pos_a - pos_b
+            # edges[nodeID_a * numNodes + nodeID_b, :] = getMagnitudeAndDirection(pos_a, pos_b)
+        else:
+            # Spatial edge
+            pos_a = nodes[nodeID_a, :]
+            pos_b = nodes[nodeID_b, :]
+
+            edges[nodeID_a * numNodes + nodeID_b, :] = pos_a - pos_b
+            # edges[nodeID_a * numNodes + nodeID_b, :] = getMagnitudeAndDirection(pos_a, pos_b)
+
+    return edges
+
+def getCoef_train(outputs):
+    mux, muy, sx, sy, corr = outputs[:, 0], outputs[:, 1], outputs[:, 2], outputs[:, 3], outputs[:, 4]
+
+    sx = torch.exp(sx)
+    sy = torch.exp(sy)
+    corr = torch.tanh(corr)
+    return mux, muy, sx, sy, corr
+
+def sample_gaussian_2d_train(mux, muy, sx, sy, corr, nodesPresent):
+    o_mux, o_muy, o_sx, o_sy, o_corr = mux, muy, sx, sy, corr
+
+    numNodes = mux.size()[0]
+
+    next_x = torch.zeros(numNodes)
+    next_y = torch.zeros(numNodes)
+    for node in range(numNodes):
+        if node not in nodesPresent:
+            continue
+        mean = [o_mux[node], o_muy[node]]
+
+        cov = [[o_sx[node]*o_sx[node], o_corr[node]*o_sx[node]*o_sy[node]], [o_corr[node]*o_sx[node]*o_sy[node], o_sy[node]*o_sy[node]]]
+
+        next_values = np.random.multivariate_normal(mean, cov, 1)
+        next_x[node] = next_values[0][0]
+        next_y[node] = next_values[0][1]
+
+    # return torch.from_numpy(next_x).cuda(), torch.from_numpy(next_y).cuda()
+    return next_x, next_y
