@@ -8,6 +8,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pickle
 import ipdb
+import argparse
+# import seaborn
 
 
 def plot_attention(true_pos_nodes, pred_pos_nodes, nodes_present, observed_length, attn_weights, name, plot_directory):
@@ -33,39 +35,59 @@ def plot_attention(true_pos_nodes, pred_pos_nodes, nodes_present, observed_lengt
         # Predicted part
         # Create a plot for current prediction tstep
         # TODO for now, just plot the attention for the first step
-        for ped in nodes_present[tstep]:
-            true_traj_ped = np.array(traj_data[ped][0])
-            pred_traj_ped = np.array(traj_data[ped][1])
+        if len(nodes_present[observed_length-1]) == 1:
+            # Only one pedestrian, so no spatial edges
+            continue
+        for ped in nodes_present[observed_length-1]:
+            true_traj_ped = (np.array(traj_data[ped][0]) + 1) / 2
+            pred_traj_ped = (np.array(traj_data[ped][1]) + 1) / 2
 
             peds_other = attn_weights[tstep-observed_length][ped][1]
             attn_w = attn_weights[tstep-observed_length][ped][0]
 
-            plt.figure()
+            fig = plt.figure()
+            ax = fig.gca()
             c = 'r'
             # ipdb.set_trace()
-            plt.plot(true_traj_ped[:, 0], true_traj_ped[:, 1], color=c, linestyle='solid', marker='o', linewidth=1)
-            plt.plot(pred_traj_ped[:, 0], pred_traj_ped[:, 1], color=c, linestyle='dashed', marker='x', linewidth=1)
+            plt.plot(true_traj_ped[:, 0], true_traj_ped[:, 1], color=c, linestyle='solid', linewidth=1)
+            plt.scatter(true_traj_ped[-1, 0], true_traj_ped[-1, 1], color=c, marker='x')
+            # plt.plot(pred_traj_ped[:, 0], pred_traj_ped[:, 1], color=c, linestyle='dashed', marker='x', linewidth=1)
 
             for ind_ped, ped_o in enumerate(peds_other):
-                true_traj_ped_o = np.array(traj_data[ped_o][0])
-                pred_traj_ped_o = np.array(traj_data[ped_o][1])
+                true_traj_ped_o = (np.array(traj_data[ped_o][0]) + 1) / 2
+                pred_traj_ped_o = (np.array(traj_data[ped_o][1]) + 1) / 2
 
                 weight = attn_w[ind_ped]
 
-                c = np.random.rand(3, 1)
-                plt.plot(true_traj_ped_o[:, 0], true_traj_ped_o[:, 1], color=c, linestyle='solid', marker='o', linewidth=2*weight)
-                plt.plot(pred_traj_ped_o[:, 0], pred_traj_ped_o[:, 1], color=c, linestyle='dashed', marker='x', linewidth=2*weight)
+                c = np.random.rand(3)
+                plt.plot(true_traj_ped_o[:, 0], true_traj_ped_o[:, 1], color=c, linestyle='solid', linewidth=1)
+                plt.scatter(true_traj_ped_o[-1, 0], true_traj_ped_o[-1, 1], color=c, marker='^')
+                circle = plt.Circle((true_traj_ped_o[-1, 0], true_traj_ped_o[-1, 1]), weight*0.1, fill=False, color='b')
+                ax.add_artist(circle)                
+                # plt.plot(pred_traj_ped_o[:, 0], pred_traj_ped_o[:, 1], color=c, linestyle='dashed', marker='x', linewidth=2*weight)
 
+            plt.ylim((1, 0))
+            plt.xlim((0, 1))
             plt.show()
 
         break
 
 
 def main():
-    save_directory = 'save/save_attention'
+
+    parser = argparse.ArgumentParser()
+
+    parser.add_argument('--test_dataset', type=int, default=0,
+                        help='test dataset index')
+
+    # Parse the parameters
+    args = parser.parse_args()
+    
+    save_directory = 'save/'
+    save_directory += str(args.test_dataset) + '/save_attention/'
     plot_directory = 'plot/plot_attention_viz'
 
-    f = open(save_directory+'/results.pkl', 'rb')
+    f = open(save_directory+'results.pkl', 'rb')
     results = pickle.load(f)
 
     for i in range(len(results)):
