@@ -24,7 +24,7 @@ def main():
     parser = argparse.ArgumentParser()
 
     # RNN size
-    parser.add_argument('--human_node_rnn_size', type=int, default=256,
+    parser.add_argument('--human_node_rnn_size', type=int, default=128,
                         help='Size of Human Node RNN hidden state')
     parser.add_argument('--human_human_edge_rnn_size', type=int, default=256,
                         help='Size of Human Human Edge RNN hidden state')
@@ -38,9 +38,9 @@ def main():
                         help='Dimension of the node output')
 
     # Embedding size
-    parser.add_argument('--human_node_embedding_size', type=int, default=128,
+    parser.add_argument('--human_node_embedding_size', type=int, default=64,
                         help='Embedding size of node features')
-    parser.add_argument('--human_human_edge_embedding_size', type=int, default=128,
+    parser.add_argument('--human_human_edge_embedding_size', type=int, default=64,
                         help='Embedding size of edge features')
 
     parser.add_argument('--attention_size', type=int, default=64,
@@ -57,7 +57,7 @@ def main():
                         help='Batch size')
 
     # Number of epochs
-    parser.add_argument('--num_epochs', type=int, default=300,
+    parser.add_argument('--num_epochs', type=int, default=100,
                         help='number of epochs')
     
     # Gradient value at which it should be clipped
@@ -158,8 +158,8 @@ def train(args):
 
     # optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
     # optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
-    optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate)
-    # optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate)
+    # optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate)
+    optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate)
     # optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate, momentum=0.0001, centered=True)
     learning_rate = args.learning_rate
     print 'Training begin'
@@ -169,18 +169,19 @@ def train(args):
 
     # Scheduled sampling stuff
     def scheduled_sampling_prob(epoch):
-        if epoch < 10:
+        if epoch < 20:
             return 0
         else:
-            return (epoch)/400.
+            # return (epoch)/500.
+            return 0
     
     # Training
     for epoch in range(args.num_epochs):
         # optimizer = torch.optim.RMSprop(net.parameters(), lr=learning_rate)
-        for param_group in optimizer.param_groups:
-	    param_group['lr'] = learning_rate
+        # for param_group in optimizer.param_groups:
+	#    param_group['lr'] = learning_rate
     
-        learning_rate *= args.decay_rate
+        # learning_rate *= args.decay_rate
         # learning_rate = args.learning_rate / np.sqrt(epoch + 1)
 
         dataloader.reset_batch_pointer(valid=False)
