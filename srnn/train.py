@@ -26,7 +26,7 @@ def main():
     # RNN size
     parser.add_argument('--human_node_rnn_size', type=int, default=256,
                         help='Size of Human Node RNN hidden state')
-    parser.add_argument('--human_human_edge_rnn_size', type=int, default=128,
+    parser.add_argument('--human_human_edge_rnn_size', type=int, default=256,
                         help='Size of Human Human Edge RNN hidden state')
 
     # Input and output size
@@ -40,7 +40,7 @@ def main():
     # Embedding size
     parser.add_argument('--human_node_embedding_size', type=int, default=128,
                         help='Embedding size of node features')
-    parser.add_argument('--human_human_edge_embedding_size', type=int, default=64,
+    parser.add_argument('--human_human_edge_embedding_size', type=int, default=128,
                         help='Embedding size of edge features')
 
     parser.add_argument('--attention_size', type=int, default=64,
@@ -71,7 +71,7 @@ def main():
     parser.add_argument('--learning_rate', type=float, default=0.001,
                         help='learning rate')
     # Decay rate for the learning rate parameter
-    parser.add_argument('--decay_rate', type=float, default=0.96,
+    parser.add_argument('--decay_rate', type=float, default=0.99,
                         help='decay rate for rmsprop')
 
     # Dropout rate
@@ -177,10 +177,10 @@ def train(args):
     # Training
     for epoch in range(args.num_epochs):
         # optimizer = torch.optim.RMSprop(net.parameters(), lr=learning_rate)
-        # for param_group in optimizer.param_groups:
-	#    param_group['lr'] = learning_rate
+        for param_group in optimizer.param_groups:
+	    param_group['lr'] = learning_rate
     
-        # learning_rate *= args.decay_rate
+        learning_rate *= args.decay_rate
         # learning_rate = args.learning_rate / np.sqrt(epoch + 1)
 
         dataloader.reset_batch_pointer(valid=False)
