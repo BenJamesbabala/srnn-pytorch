@@ -158,8 +158,10 @@ class SRNN(nn.Module):
 
         if self.infer:
             self.seq_length = 1
+            self.obs_length = 1
         else:
             self.seq_length = args.seq_length
+            self.obs_length = args.seq_length - args.pred_length
 
         self.human_node_rnn_size = args.human_node_rnn_size
         self.human_human_edge_rnn_size = args.human_human_edge_rnn_size
@@ -227,7 +229,7 @@ class SRNN(nn.Module):
             nodeIDs = nodesPresent[framenum]
 
             coin = np.random.uniform()
-            if coin < sprob and framenum > 0 and (not self.infer):
+            if coin < sprob and framenum >= self.obs_length and (not self.infer):
             # if framenum > 0:
                 # Use sampled nodes and edges
                 last_outputs = outputs[(framenum-1)*numNodes:framenum*numNodes].clone()
