@@ -10,6 +10,7 @@ import matplotlib.pyplot as plt
 import pickle
 from torch.autograd import Variable
 import argparse
+import seaborn
 
 
 def plot_trajectories(true_trajs, pred_trajs, nodesPresent, obs_length, name, plot_directory, withBackground=False):
@@ -35,8 +36,6 @@ def plot_trajectories(true_trajs, pred_trajs, nodesPresent, obs_length, name, pl
 
     traj_length, numNodes, _ = true_trajs.shape
     # Initialize figure
-    plt.figure()
-
     # Load the background
     # im = plt.imread('plot/background.png')
     # if withBackground:
@@ -66,7 +65,7 @@ def plot_trajectories(true_trajs, pred_trajs, nodesPresent, obs_length, name, pl
                 traj_data[ped][1].append(pred_pos[ped, :])
 
     for j in traj_data:
-        c = np.random.rand(3, 1)
+        c = np.random.rand(3)
         true_traj_ped = traj_data[j][0]  # List of [x,y] elements
         pred_traj_ped = traj_data[j][1]
 
@@ -75,8 +74,8 @@ def plot_trajectories(true_trajs, pred_trajs, nodesPresent, obs_length, name, pl
         pred_x = [(p[0]+1)/2*height for p in pred_traj_ped]
         pred_y = [(p[1]+1)/2*width for p in pred_traj_ped]
 
-        plt.plot(true_x, true_y, color='red', linestyle='solid', marker='o')
-        plt.plot(pred_x, pred_y, color='red', linestyle='dashed', marker='x')
+        plt.plot(true_x, true_y, color=c, linestyle='solid', linewidth=2, marker='o')
+        plt.plot(pred_x, pred_y, color=c, linestyle='dashed', linewidth=2, marker='+')
 
     if not withBackground:
         plt.ylim((1, 0))
@@ -89,7 +88,8 @@ def plot_trajectories(true_trajs, pred_trajs, nodesPresent, obs_length, name, pl
         plt.savefig(plot_directory+'/'+name+'.png')
 
     plt.gcf().clear()
-    plt.close('all')
+    # plt.close('all')
+    plt.clf()
 
 
 def main():

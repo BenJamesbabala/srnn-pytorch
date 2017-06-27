@@ -88,8 +88,8 @@ def main():
         print 'Loaded checkpoint at epoch', model_epoch
 
     # Dataset to get data from
-    # dataset = [sample_args.test_dataset]
-    dataset = [0]
+    dataset = [sample_args.test_dataset]
+    # dataset = [0]
 
     dataloader = DataLoader(1, sample_args.pred_length + sample_args.obs_length, dataset, True, infer=True)
 
