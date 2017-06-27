@@ -88,8 +88,8 @@ def main():
         print 'Loaded checkpoint at epoch', model_epoch
 
     # Dataset to get data from
-    dataset = [sample_args.test_dataset]
-    # dataset = [0]
+    # dataset = [sample_args.test_dataset]
+    dataset = [0]
 
     dataloader = DataLoader(1, sample_args.pred_length + sample_args.obs_length, dataset, True, infer=True)
 
@@ -180,7 +180,7 @@ def sample(nodes, edges, nodesPresent, edgesPresent, args, net, true_nodes, true
     # print 'Observed part'
     # Propagate the observed length of the trajectory
     for tstep in range(args.obs_length-1):
-        out_obs, h_nodes, h_edges, c_nodes, c_edges, _ = net(nodes[tstep].view(1, numNodes, 2), edges[tstep].view(1, numNodes*numNodes, 2), [nodesPresent[tstep]], [edgesPresent[tstep]], h_nodes, h_edges, c_nodes, c_edges)
+        out_obs, h_nodes, h_edges, c_nodes, c_edges, _ = net(nodes[tstep].view(1, numNodes, 2), edges[tstep].view(1, numNodes*numNodes, 2), [nodesPresent[tstep]], [edgesPresent[tstep]], h_nodes, h_edges, c_nodes, c_edges, 0)
         # loss_obs = Gaussian2DLikelihood(out_obs, nodes[tstep+1].view(1, numNodes, 2), [nodesPresent[tstep+1]])
         # print loss_obs.data
         # raw_input()
@@ -199,7 +199,7 @@ def sample(nodes, edges, nodesPresent, edgesPresent, args, net, true_nodes, true
     for tstep in range(args.obs_length-1, args.pred_length + args.obs_length-1):
         # TODO Not keeping track of nodes leaving the frame (or new nodes entering the frame, which I don't think we can do anyway)
         outputs, h_nodes, h_edges, c_nodes, c_edges, attn_w = net(ret_nodes[tstep].view(1, numNodes, 2), ret_edges[tstep].view(1, numNodes*numNodes, 2),
-                                                                  [nodesPresent[args.obs_length-1]], [edgesPresent[args.obs_length-1]], h_nodes, h_edges, c_nodes, c_edges)
+                                                                  [nodesPresent[args.obs_length-1]], [edgesPresent[args.obs_length-1]], h_nodes, h_edges, c_nodes, c_edges, 0)
         loss_pred = Gaussian2DLikelihoodInference(outputs, true_nodes[tstep + 1].view(1, numNodes, 2), nodesPresent[args.obs_length-1], [true_nodesPresent[tstep + 1]])
         # print loss_pred.data
         # print attn_w

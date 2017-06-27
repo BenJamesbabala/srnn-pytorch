@@ -11,6 +11,7 @@ from torch.autograd import Variable
 import torch
 import numpy as np
 import ipdb
+from helper import sample_gaussian_2d_batch
 
 
 class HumanNodeRNN(nn.Module):
@@ -173,7 +174,7 @@ class SRNN(nn.Module):
         self.attn = EdgeAttention(args, infer)
 
     def forward(self, nodes, edges, nodesPresent, edgesPresent, hidden_states_node_RNNs, hidden_states_edge_RNNs,
-                cell_states_node_RNNs, cell_states_edge_RNNs):
+                cell_states_node_RNNs, cell_states_edge_RNNs, sprob):
         '''
         Parameters
         ==========
@@ -197,6 +198,8 @@ class SRNN(nn.Module):
         hidden_states_edge_RNNs : A tensor of size numNodes x numNodes x 1 x edge_rnn_size
         Contains hidden states of the edge RNNs
 
+        sprob: Scheduled sampling probability
+
         Returns
         =======
 
@@ -211,16 +214,29 @@ class SRNN(nn.Module):
         numNodes = nodes.size()[1]
 
         # Initialize output array
-        outputs = Variable(torch.zeros(self.seq_length * numNodes, self.output_size)).cuda()
+        outputs = Variable(torch.zeros(self.seq_length*numNodes, self.output_size)).cuda()
 
         # Data structure to store attention weights
         attn_weights = [{} for _ in range(self.seq_length)]
 
         for framenum in range(self.seq_length):
-            edgeIDs = edgesPresent[framenum]
+            edgeIDs = edgesPresent[framenum]            
             temporal_edges = [x for x in edgeIDs if x[0] == x[1]]
             spatial_edges = [x for x in edgeIDs if x[0] != x[1]]
-            edges_current = edges[framenum]
+
+            nodeIDs = nodesPresent[framenum]
+
+            coin = np.random.uniform()
+            if coin < sprob and framenum > 0 and (not self.infer):
+            # if framenum > 0:
+                # Use sampled nodes and edges
+                last_outputs = outputs[(framenum-1)*numNodes:framenum*numNodes].clone()
+                nodes_prev_tstep = nodes[framenum-1]
+                nodes_current, edges_current = sample_gaussian_2d_batch(last_outputs, nodeIDs, edgeIDs, nodes_prev_tstep)
+            else:
+                # Use true nodes and edges
+                nodes_current = nodes[framenum]
+                edges_current = edges[framenum]
 
             hidden_states_nodes_from_edges_temporal = Variable(torch.zeros(numNodes, self.human_human_edge_rnn_size).cuda())
             hidden_states_nodes_from_edges_spatial = Variable(torch.zeros(numNodes, self.human_human_edge_rnn_size).cuda())
@@ -285,14 +301,11 @@ class SRNN(nn.Module):
                             attn_weights[framenum][node] = (attn_w.data.cpu().numpy(), node_others)
                             hidden_states_nodes_from_edges_spatial[node] = hidden_attn_weighted
 
-            # Nodes
-            nodeIDs = nodesPresent[framenum]
-
             if len(nodeIDs) != 0:
 
                 list_of_nodes = Variable(torch.LongTensor(nodeIDs).cuda())
 
-                nodes_current = torch.index_select(nodes[framenum], 0, list_of_nodes)
+                nodes_current_selected = torch.index_select(nodes_current, 0, list_of_nodes)
 
                 hidden_nodes_current = torch.index_select(hidden_states_node_RNNs, 0, list_of_nodes)
                 cell_nodes_current = torch.index_select(cell_states_node_RNNs, 0, list_of_nodes)
@@ -300,7 +313,7 @@ class SRNN(nn.Module):
                 h_temporal_other = hidden_states_nodes_from_edges_temporal[list_of_nodes.data]
                 h_spatial_other = hidden_states_nodes_from_edges_spatial[list_of_nodes.data]
 
-                outputs[framenum * numNodes + list_of_nodes.data], h_nodes, c_nodes = self.humanNodeRNN(nodes_current, h_temporal_other, h_spatial_other, hidden_nodes_current, cell_nodes_current)
+                outputs[framenum * numNodes + list_of_nodes.data], h_nodes, c_nodes = self.humanNodeRNN(nodes_current_selected, h_temporal_other, h_spatial_other, hidden_nodes_current, cell_nodes_current)
 
                 hidden_states_node_RNNs[list_of_nodes.data] = h_nodes
                 cell_states_node_RNNs[list_of_nodes.data] = c_nodes
