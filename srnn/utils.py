@@ -203,6 +203,8 @@ class DataLoader():
         x_batch = []
         # Target data
         y_batch = []
+        # Frame data
+        frame_batch = []
         # Dataset data
         d = []
         # Iteration index
@@ -210,6 +212,7 @@ class DataLoader():
         while i < self.batch_size:
             # Extract the frame data of the current dataset
             frame_data = self.data[self.dataset_pointer]
+            frame_ids = self.frameList[self.dataset_pointer]
             # Get the frame pointer for the current dataset
             idx = self.frame_pointer
             # While there is still seq_length number of frames left in the current dataset
@@ -218,10 +221,12 @@ class DataLoader():
                 # seq_frame_data = frame_data[idx:idx+self.seq_length+1]
                 seq_source_frame_data = frame_data[idx:idx+self.seq_length]
                 seq_target_frame_data = frame_data[idx+1:idx+self.seq_length+1]
+                seq_frame_ids = frame_ids[idx:idx+self.seq_length]
 
                 # Number of unique peds in this sequence of frames
                 x_batch.append(seq_source_frame_data)
                 y_batch.append(seq_target_frame_data)
+                frame_batch.append(seq_frame_ids)
 
                 # advance the frame pointer to a random point
                 if randomUpdate:
@@ -237,7 +242,7 @@ class DataLoader():
                 # Increment the dataset pointer and set the frame_pointer to zero
                 self.tick_batch_pointer(valid=False)
 
-        return x_batch, y_batch, d
+        return x_batch, y_batch, frame_batch, d
 
     def next_valid_batch(self, randomUpdate=True):
         '''

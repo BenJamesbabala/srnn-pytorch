@@ -107,7 +107,7 @@ def main():
     for batch in range(dataloader.num_batches):
         start = time.time()
 
-        x, _, d = dataloader.next_batch(randomUpdate=False)
+        x, _, frameIDs, d = dataloader.next_batch(randomUpdate=False)
 
         stgraph.readGraph(x)
 
@@ -128,7 +128,7 @@ def main():
 
         print 'Processed trajectory number : ', batch, 'out of', dataloader.num_batches, 'trajectories in time', end - start
 
-        results.append((nodes.data.cpu().numpy(), ret_nodes.data.cpu().numpy(), nodesPresent, sample_args.obs_length, ret_attn))
+        results.append((nodes.data.cpu().numpy(), ret_nodes.data.cpu().numpy(), nodesPresent, sample_args.obs_length, ret_attn, frameIDs))
 
         stgraph.reset()
 
