@@ -196,7 +196,7 @@ def train(args):
             start = time.time()
 
             # Get batch data
-            x, _, d = dataloader.next_batch(randomUpdate=True)
+            x, _, _, d = dataloader.next_batch(randomUpdate=True)
 
             # Read the st graph from data
             # stgraph.readGraph(x)
