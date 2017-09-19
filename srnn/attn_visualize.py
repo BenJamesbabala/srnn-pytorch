@@ -9,7 +9,7 @@ import matplotlib.pyplot as plt
 import pickle
 import ipdb
 import argparse
-# import seaborn
+import seaborn
 
 
 def plot_attention(true_pos_nodes, pred_pos_nodes, nodes_present, observed_length, attn_weights, name, plot_directory):
@@ -28,6 +28,7 @@ def plot_attention(true_pos_nodes, pred_pos_nodes, nodes_present, observed_lengt
                 traj_data[ped][0].append(true_pos[ped, :])
                 traj_data[ped][1].append(pred_pos[ped, :])
 
+    fig = plt.figure()
     for tstep in range(traj_length):
         if tstep < observed_length:
             # Observed part
@@ -45,12 +46,13 @@ def plot_attention(true_pos_nodes, pred_pos_nodes, nodes_present, observed_lengt
             peds_other = attn_weights[tstep-observed_length][ped][1]
             attn_w = attn_weights[tstep-observed_length][ped][0]
 
-            fig = plt.figure()
+            # fig = plt.figure()
             ax = fig.gca()
             c = 'r'
             # ipdb.set_trace()
-            plt.plot(true_traj_ped[:, 0], true_traj_ped[:, 1], color=c, linestyle='solid', linewidth=1)
-            plt.scatter(true_traj_ped[-1, 0], true_traj_ped[-1, 1], color=c, marker='x')
+	    list_of_points = range(true_traj_ped[:, 0].size-1)
+            plt.plot(true_traj_ped[:, 0], true_traj_ped[:, 1], color=c, linestyle='solid', linewidth=1, marker='o', markevery=list_of_points)
+            plt.scatter(true_traj_ped[-1, 0], true_traj_ped[-1, 1], color='b', marker='D')
             # plt.plot(pred_traj_ped[:, 0], pred_traj_ped[:, 1], color=c, linestyle='dashed', marker='x', linewidth=1)
 
             for ind_ped, ped_o in enumerate(peds_other):
@@ -60,20 +62,27 @@ def plot_attention(true_pos_nodes, pred_pos_nodes, nodes_present, observed_lengt
                 weight = attn_w[ind_ped]
 
                 c = np.random.rand(3)
-                plt.plot(true_traj_ped_o[:, 0], true_traj_ped_o[:, 1], color=c, linestyle='solid', linewidth=1)
-                plt.scatter(true_traj_ped_o[-1, 0], true_traj_ped_o[-1, 1], color=c, marker='^')
-                circle = plt.Circle((true_traj_ped_o[-1, 0], true_traj_ped_o[-1, 1]), weight*0.1, fill=False, color='b')
+	        list_of_points = range(true_traj_ped_o[:, 0].size-1)
+                plt.plot(true_traj_ped_o[:, 0], true_traj_ped_o[:, 1], color=c, linestyle='solid', linewidth=1, marker='o', markevery=list_of_points)
+                plt.scatter(true_traj_ped_o[-1, 0], true_traj_ped_o[-1, 1], color='b', marker='D')
+                circle = plt.Circle((true_traj_ped_o[-1, 0], true_traj_ped_o[-1, 1]), weight*0.1, fill=False, color='b', linewidth=2)
                 ax.add_artist(circle)                
                 # plt.plot(pred_traj_ped_o[:, 0], pred_traj_ped_o[:, 1], color=c, linestyle='dashed', marker='x', linewidth=2*weight)
 
-            plt.ylim((1, 0))
-            plt.xlim((0, 1))
-            plt.show()
+            # plt.ylim((1, 0))
+            # plt.xlim((0, 1))
+	    ax.set_aspect('equal')
+            # plt.show()
+            plt.savefig(plot_directory+'/'+name+'_'+str(ped)+'.png')
+            # plt.close('all')
+	    plt.clf()
 
         break
+    plt.close('all')
 
 
-def main():
+def main():
+
     parser = argparse.ArgumentParser()
 
     parser.add_argument('--test_dataset', type=int, default=0,
@@ -84,7 +93,7 @@ def main():
     
     save_directory = 'save/'
     save_directory += str(args.test_dataset) + '/save_attention/'
-    plot_directory = 'plot/plot_attention_viz'
+    plot_directory = 'plot/plot_attention_viz/'+str(args.test_dataset)
 
     f = open(save_directory+'results.pkl', 'rb')
     results = pickle.load(f)
