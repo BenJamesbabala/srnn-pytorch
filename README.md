@@ -17,3 +17,8 @@ This code/implementation is available for research purposes. If you are using th
 * Numpy
 * Matplotlib
 * Scipy
+
+## How to Run
+* Before running the code, create the required directories by running the script `make_directories.sh`
+* To train the model run `python srnn/train.py` (See the code to understand all the arguments that can be given to the command)
+* To test the model run `python srnn/sample.py --epoch=n` where `n` is the epoch at which you want to load the saved model. (See the code to understand all the arguments that can be given to the command)

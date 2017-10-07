@@ -105,18 +105,18 @@ class ST_GRAPH():
             nodes = self.nodes[sequence]
             edges = self.edges[sequence]
 
-            print 'Printing Nodes'
-            print '==============================='
+            print('Printing Nodes')
+            print('===============================')
             for node in nodes.values():
                 node.printNode()
-                print '--------------'
+                print('--------------')
 
             print
-            print 'Printing Edges'
-            print '==============================='
+            print('Printing Edges')
+            print('===============================')
             for edge in edges.values():
                 edge.printEdge()
-                print '--------------'
+                print('--------------')
 
     def getSequence(self):
         '''
@@ -130,8 +130,8 @@ class ST_GRAPH():
 
         retNodes = np.zeros((self.seq_length, numNodes, 2))
         retEdges = np.zeros((self.seq_length, numNodes*numNodes, 2))  # Diagonal contains temporal edges
-        retNodePresent = [[] for c in xrange(self.seq_length)]
-        retEdgePresent = [[] for c in xrange(self.seq_length)]
+        retNodePresent = [[] for c in range(self.seq_length)]
+        retEdgePresent = [[] for c in range(self.seq_length)]
 
         for i, ped in enumerate(nodes.keys()):
             list_of_nodes[ped] = i
@@ -215,7 +215,7 @@ class ST_NODE():
         Print function for the node
         For debugging purposes
         '''
-        print 'Node type:', self.node_type, 'with ID:', self.node_id, 'with positions:', self.node_pos_list.values(), 'at time-steps:', self.node_pos_list.keys()
+        print('Node type:', self.node_type, 'with ID:', self.node_id, 'with positions:', self.node_pos_list.values(), 'at time-steps:', self.node_pos_list.keys())
 
 
 class ST_EDGE():
@@ -268,4 +268,4 @@ class ST_EDGE():
         Print function for the edge
         For debugging purposes
         '''
-        print 'Edge type:', self.edge_type, 'between nodes:', self.edge_id, 'at time-steps:', self.edge_pos_list.keys()
+        print('Edge type:', self.edge_type, 'between nodes:', self.edge_id, 'at time-steps:', self.edge_pos_list.keys())

@@ -40,31 +40,13 @@ def main():
     parser.add_argument('--epoch', type=int, default=49,
                         help='Epoch of model to be loaded')
 
-    # Experiments
-    # parser.add_argument('--noedges', action='store_true')
-    # parser.add_argument('--temporal', action='store_true')
-    # parser.add_argument('--temporal_spatial', action='store_true')
-    parser.add_argument('--attention', action='store_true')
-
     # Parse the parameters
     sample_args = parser.parse_args()
-
-    # Check experiment tags
-    # if not (sample_args.noedges or sample_args.temporal or sample_args.temporal_spatial or sample_args.attention):
-    #    print 'Use one of the experiment tags to enforce model'
-    #    return
 
     # Save directory
     save_directory = 'save/'
     save_directory += str(sample_args.test_dataset)+'/'
-    if sample_args.noedges:
-        save_directory += 'save_noedges'
-    elif sample_args.temporal:
-        save_directory += 'save_temporal'
-    elif sample_args.temporal_spatial:
-        save_directory += 'save_temporal_spatial'
-    else:
-        save_directory += 'save_attention'
+    save_directory += 'save_attention'
 
     # Define the path for the config file for saved args
     with open(os.path.join(save_directory, 'config.pkl'), 'rb') as f:
@@ -109,7 +91,7 @@ def main():
         # Construct ST graph
         stgraph.readGraph(x)
 
-        nodes, edges, nodesPresent, edgesPresent = stgraph.getSequence(0)
+        nodes, edges, nodesPresent, edgesPresent = stgraph.getSequence()
 
         # Convert to cuda variables
         nodes = Variable(torch.from_numpy(nodes).float(), volatile=True).cuda()
@@ -127,7 +109,7 @@ def main():
 
         end = time.time()
 
-        print 'Processed trajectory number : ', batch, 'out of', dataloader.num_batches, 'trajectories in time', end - start
+        print('Processed trajectory number : ', batch, 'out of', dataloader.num_batches, 'trajectories in time', end - start)
 
         # Store results
         results.append((nodes.data.cpu().numpy(), ret_nodes.data.cpu().numpy(), nodesPresent, sample_args.obs_length, ret_attn, frameIDs))
@@ -135,10 +117,10 @@ def main():
         # Reset the ST graph
         stgraph.reset()
 
-    print 'Total mean error of the model is ', total_error / dataloader.num_batches
-    print 'Total final error of the model is ', final_error / dataloader.num_batches
+    print('Total mean error of the model is ', total_error / dataloader.num_batches)
+    print('Total final error of the model is ', final_error / dataloader.num_batches)
 
-    print 'Saving results'
+    print('Saving results')
     with open(os.path.join(save_directory, 'results.pkl'), 'wb') as f:
         pickle.dump(results, f)
 
@@ -201,7 +183,7 @@ def sample(nodes, edges, nodesPresent, edgesPresent, args, net, true_nodes, true
         # TODO Not keeping track of nodes leaving the frame (or new nodes entering the frame, which I don't think we can do anyway)
         # Forward prop
         outputs, h_nodes, h_edges, c_nodes, c_edges, attn_w = net(ret_nodes[tstep].view(1, numNodes, 2), ret_edges[tstep].view(1, numNodes*numNodes, 2),
-                                                                  [nodesPresent[args.obs_length-1]], [edgesPresent[args.obs_length-1]], h_nodes, h_edges, c_nodes, c_edges, 0)
+                                                                  [nodesPresent[args.obs_length-1]], [edgesPresent[args.obs_length-1]], h_nodes, h_edges, c_nodes, c_edges)
         loss_pred = Gaussian2DLikelihoodInference(outputs, true_nodes[tstep + 1].view(1, numNodes, 2), nodesPresent[args.obs_length-1], [true_nodesPresent[tstep + 1]])
 
         # Sample from o

@@ -173,7 +173,7 @@ class EdgeAttention(nn.Module):
         num_edges = h_spatials.size()[0]
 
         # Embed the temporal edgeRNN hidden state
-        temporal_embed = self.temporal_spatial_edge_layer(h_temporal)
+        temporal_embed = self.temporal_edge_layer(h_temporal)
         temporal_embed = temporal_embed.squeeze(0)
 
         # Embed the spatial edgeRNN hidden states
@@ -284,7 +284,7 @@ class SRNN(nn.Module):
             hidden_states_nodes_from_edges_spatial = Variable(torch.zeros(numNodes, self.human_human_edge_rnn_size).cuda())
 
             # If there are any edges
-            if len(edgeIDs) != 0 and (not self.args.noedges):
+            if len(edgeIDs) != 0:
 
                 # Temporal Edges
                 if len(temporal_edges) != 0:
@@ -311,7 +311,7 @@ class SRNN(nn.Module):
                     hidden_states_nodes_from_edges_temporal[list_of_temporal_nodes] = h_temporal
 
                 # Spatial Edges
-                if len(spatial_edges) != 0 and (not self.args.temporal):
+                if len(spatial_edges) != 0:
                     # Get the spatial edges
                     list_of_spatial_edges = Variable(torch.LongTensor([x[0]*numNodes + x[1] for x in edgeIDs if x[0] != x[1]]).cuda())
                     # Get nodes associated with the spatial edges
@@ -335,12 +335,13 @@ class SRNN(nn.Module):
                     # For each node
                     for node in range(numNodes):
                         # Get the indices of spatial edges associated with this node
-                        l = torch.LongTensor(np.where(list_of_spatial_nodes == node)[0]).cuda()
-                        # What are the other nodes with these edges?
-                        node_others = [x[1] for x in edgeIDs if x[0] == node and x[0] != x[1]]
-                        if torch.numel(l) == 0:
+                        l = np.where(list_of_spatial_nodes == node)[0]
+                        if len(l) == 0:
                             # If the node has no spatial edges, nothing to do
                             continue
+                        l = torch.LongTensor(l).cuda()
+                        # What are the other nodes with these edges?
+                        node_others = [x[1] for x in edgeIDs if x[0] == node and x[0] != x[1]]                        
                         # If it has spatial edges
                         # Get its corresponding temporal edgeRNN hidden state
                         h_node = hidden_states_nodes_from_edges_temporal[node]

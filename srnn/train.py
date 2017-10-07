@@ -83,27 +83,13 @@ def main():
     parser.add_argument('--leaveDataset', type=int, default=3,
                         help='The dataset index to be left out in training')
 
-    # Experiments
-    # parser.add_argument('--noedges', action='store_true')
-    # parser.add_argument('--temporal', action='store_true')
-    # parser.add_argument('--temporal_spatial', action='store_true')
-    parser.add_argument('--attention', action='store_true')
-
-    # Attention type
-    parser.add_argument('--attention_type', choices=['concat', 'dot', 'general'], type=str, default='dot', help='Attention type')
-
     args = parser.parse_args()
-
-    # Check experiment tags
-    # if not (args.noedges or args.temporal or args.temporal_spatial or args.attention):
-    #    print 'Use one of the experiment tags to enforce model'
-    #    return
 
     train(args)
 
 
 def train(args):
-    datasets = range(5)
+    datasets = [i for i in range(5)]
     # Remove the leave out dataset from the datasets
     datasets.remove(args.leaveDataset)
     # datasets = [0]
@@ -118,14 +104,7 @@ def train(args):
     # Log directory
     log_directory = 'log/'
     log_directory += str(args.leaveDataset)+'/'
-    if args.noedges:
-        log_directory += 'log_noedges'
-    elif args.temporal:
-        log_directory += 'log_temporal'
-    elif args.temporal_spatial:
-        log_directory += 'log_temporal_spatial'
-    else:
-        log_directory += 'log_attention'
+    log_directory += 'log_attention'
 
     # Logging file
     log_file_curve = open(os.path.join(log_directory, 'log_curve.txt'), 'w')
@@ -134,14 +113,7 @@ def train(args):
     # Save directory
     save_directory = 'save/'
     save_directory += str(args.leaveDataset)+'/'
-    if args.noedges:
-        save_directory += 'save_noedges'
-    elif args.temporal:
-        save_directory += 'save_temporal'
-    elif args.temporal_spatial:
-        save_directory += 'save_temporal_spatial'
-    else:
-        save_directory += 'save_attention'
+    save_directory += 'save_attention'
 
     # Open the configuration file
     with open(os.path.join(save_directory, 'config.pkl'), 'wb') as f:
