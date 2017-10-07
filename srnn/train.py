@@ -43,6 +43,7 @@ def main():
     parser.add_argument('--human_human_edge_embedding_size', type=int, default=64,
                         help='Embedding size of edge features')
 
+    # Attention vector dimension
     parser.add_argument('--attention_size', type=int, default=64,
                         help='Attention size')
 
@@ -59,7 +60,7 @@ def main():
     # Number of epochs
     parser.add_argument('--num_epochs', type=int, default=200,
                         help='number of epochs')
-    
+
     # Gradient value at which it should be clipped
     parser.add_argument('--grad_clip', type=float, default=10.,
                         help='clip gradients at this value')
@@ -72,7 +73,7 @@ def main():
                         help='learning rate')
     # Decay rate for the learning rate parameter
     parser.add_argument('--decay_rate', type=float, default=0.99,
-                        help='decay rate for rmsprop')
+                        help='decay rate for the optimizer')
 
     # Dropout rate
     parser.add_argument('--dropout', type=float, default=0,
@@ -83,21 +84,20 @@ def main():
                         help='The dataset index to be left out in training')
 
     # Experiments
-    parser.add_argument('--noedges', action='store_true')
-    parser.add_argument('--temporal', action='store_true')
-    parser.add_argument('--temporal_spatial', action='store_true')
+    # parser.add_argument('--noedges', action='store_true')
+    # parser.add_argument('--temporal', action='store_true')
+    # parser.add_argument('--temporal_spatial', action='store_true')
     parser.add_argument('--attention', action='store_true')
 
     # Attention type
-    parser.add_argument('--attention_type', choices=['concat', 'dot', 'general'], type=str, default='dot',
-                        help='Attention type')
+    parser.add_argument('--attention_type', choices=['concat', 'dot', 'general'], type=str, default='dot', help='Attention type')
 
     args = parser.parse_args()
 
     # Check experiment tags
-    if not (args.noedges or args.temporal or args.temporal_spatial or args.attention):
-        print 'Use one of the experiment tags to enforce model'
-        return
+    # if not (args.noedges or args.temporal or args.temporal_spatial or args.attention):
+    #    print 'Use one of the experiment tags to enforce model'
+    #    return
 
     train(args)
 
@@ -130,85 +130,60 @@ def train(args):
     # Logging file
     log_file_curve = open(os.path.join(log_directory, 'log_curve.txt'), 'w')
     log_file = open(os.path.join(log_directory, 'val.txt'), 'w')
-    
+
     # Save directory
     save_directory = 'save/'
     save_directory += str(args.leaveDataset)+'/'
     if args.noedges:
-        print 'No edge RNNs used'
         save_directory += 'save_noedges'
     elif args.temporal:
-        print 'Only temporal edge RNNs used'
         save_directory += 'save_temporal'
     elif args.temporal_spatial:
-        print 'Both temporal and spatial edge RNNs used'
         save_directory += 'save_temporal_spatial'
     else:
-        print 'Both temporal and spatial edge RNNs used with attention'
         save_directory += 'save_attention'
 
+    # Open the configuration file
     with open(os.path.join(save_directory, 'config.pkl'), 'wb') as f:
         pickle.dump(args, f)
 
+    # Path to store the checkpoint file
     def checkpoint_path(x):
         return os.path.join(save_directory, 'srnn_model_'+str(x)+'.tar')
 
+    # Initialize net
     net = SRNN(args)
     net.cuda()
 
-    # optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
-    # optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate, weight_decay=args.lambda_param)
-    # optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate)
     optimizer = torch.optim.Adam(net.parameters(), lr=args.learning_rate)
     # optimizer = torch.optim.RMSprop(net.parameters(), lr=args.learning_rate, momentum=0.0001, centered=True)
+
     learning_rate = args.learning_rate
-    print 'Training begin'
+    print('Training begin')
     best_val_loss = 100
     best_epoch = 0
 
-
-    # Scheduled sampling stuff
-    def scheduled_sampling_prob(epoch):
-        if epoch < 20:
-            return 0
-        else:
-            # return (epoch)/500.
-            return 0
-    
     # Training
     for epoch in range(args.num_epochs):
-        # optimizer = torch.optim.RMSprop(net.parameters(), lr=learning_rate)
-        # for param_group in optimizer.param_groups:
-	#    param_group['lr'] = learning_rate
-    
-        # learning_rate *= args.decay_rate
-        # learning_rate = args.learning_rate / np.sqrt(epoch + 1)
-
         dataloader.reset_batch_pointer(valid=False)
         loss_epoch = 0
 
-        sprob = scheduled_sampling_prob(epoch)
-        if sprob > 0:
-            print "Scheduled sampling probability", sprob
-
-        # Training
+        # For each batch
         for batch in range(dataloader.num_batches):
             start = time.time()
 
             # Get batch data
             x, _, _, d = dataloader.next_batch(randomUpdate=True)
 
-            # Read the st graph from data
-            # stgraph.readGraph(x)
-
             # Loss for this batch
             loss_batch = 0
 
+            # For each sequence in the batch
             for sequence in range(dataloader.batch_size):
+                # Construct the graph for the current sequence
                 stgraph.readGraph([x[sequence]])
-                
-                # nodes, edges, nodesPresent, edgesPresent = stgraph.getSequence(sequence)
-                nodes, edges, nodesPresent, edgesPresent = stgraph.getSequence(0)
+
+                nodes, edges, nodesPresent, edgesPresent = stgraph.getSequence()
 
                 # Convert to cuda variables
                 nodes = Variable(torch.from_numpy(nodes).float()).cuda()
@@ -216,7 +191,6 @@ def train(args):
 
                 # Define hidden states
                 numNodes = nodes.size()[1]
-
                 hidden_states_node_RNNs = Variable(torch.zeros(numNodes, args.human_node_rnn_size)).cuda()
                 hidden_states_edge_RNNs = Variable(torch.zeros(numNodes*numNodes, args.human_human_edge_rnn_size)).cuda()
 
@@ -228,13 +202,10 @@ def train(args):
                 optimizer.zero_grad()
 
                 # Forward prop
-                outputs, _, _, _, _, _ = net(nodes[:args.seq_length], edges[:args.seq_length], nodesPresent[:-1], edgesPresent[:-1],
-                                             hidden_states_node_RNNs, hidden_states_edge_RNNs,
-                                             cell_states_node_RNNs, cell_states_edge_RNNs, sprob)
+                outputs, _, _, _, _, _ = net(nodes[:args.seq_length], edges[:args.seq_length], nodesPresent[:-1], edgesPresent[:-1], hidden_states_node_RNNs, hidden_states_edge_RNNs, cell_states_node_RNNs, cell_states_edge_RNNs)
 
-                # Compute loss                
+                # Compute loss
                 loss = Gaussian2DLikelihood(outputs, nodes[1:], nodesPresent[1:], args.pred_length)
-
                 loss_batch += loss.data[0]
 
                 # Compute gradients
@@ -246,9 +217,9 @@ def train(args):
                 # Update parameters
                 optimizer.step()
 
+                # Reset the stgraph
                 stgraph.reset()
 
-            # stgraph.reset()
             end = time.time()
             loss_batch = loss_batch / dataloader.batch_size
             loss_epoch += loss_batch
@@ -259,19 +230,11 @@ def train(args):
                                                                                     epoch,
                                                                                     loss_batch, end - start))
 
-            '''
-            if ((epoch * dataloader.num_batches + batch) % args.save_every == 0 and ((epoch * dataloader.num_batches + batch) > 0)) or (epoch * dataloader.num_batches + batch + 1 == args.num_epochs * dataloader.num_batches):
-                print 'Saving model'
-                torch.save({
-                    'epoch': epoch,
-                    'batch': batch,
-                    'iteration': epoch*dataloader.num_batches + batch,
-                    'state_dict': net.state_dict()
-                }, checkpoint_path(epoch*dataloader.num_batches + batch))
-            '''
+        # Compute loss for the entire epoch
         loss_epoch /= dataloader.num_batches
+        # Log it
         log_file_curve.write(str(epoch)+','+str(loss_epoch)+',')
-        print '*************'
+
         # Validation
         dataloader.reset_batch_pointer(valid=True)
         loss_epoch = 0
@@ -280,16 +243,13 @@ def train(args):
             # Get batch data
             x, _, d = dataloader.next_valid_batch(randomUpdate=False)
 
-            # Read the st graph from data
-            # stgraph.readGraph(x)
-
             # Loss for this batch
             loss_batch = 0
 
             for sequence in range(dataloader.batch_size):
                 stgraph.readGraph([x[sequence]])
-                # nodes, edges, nodesPresent, edgesPresent = stgraph.getSequence(sequence)
-                nodes, edges, nodesPresent, edgesPresent = stgraph.getSequence(0)
+
+                nodes, edges, nodesPresent, edgesPresent = stgraph.getSequence()
 
                 # Convert to cuda variables
                 nodes = Variable(torch.from_numpy(nodes).float()).cuda()
@@ -304,16 +264,16 @@ def train(args):
 
                 outputs, _, _, _, _, _ = net(nodes[:args.seq_length], edges[:args.seq_length], nodesPresent[:-1], edgesPresent[:-1],
                                              hidden_states_node_RNNs, hidden_states_edge_RNNs,
-                                             cell_states_node_RNNs, cell_states_edge_RNNs, sprob)                
+                                             cell_states_node_RNNs, cell_states_edge_RNNs)
 
                 # Compute loss
                 loss = Gaussian2DLikelihood(outputs, nodes[1:], nodesPresent[1:], args.pred_length)
 
                 loss_batch += loss.data[0]
 
+                # Reset the stgraph
                 stgraph.reset()
 
-            # stgraph.reset()
             loss_batch = loss_batch / dataloader.batch_size
             loss_epoch += loss_batch
 
@@ -324,25 +284,29 @@ def train(args):
             best_val_loss = loss_epoch
             best_epoch = epoch
 
+        # Record best epoch and best validation loss
         print('(epoch {}), valid_loss = {:.3f}'.format(epoch, loss_epoch))
-        print 'Best epoch', best_epoch, 'Best validation loss', best_val_loss
+        print('Best epoch {}, Best validation loss {}'.format(best_epoch, best_val_loss))
+        # Log it
         log_file_curve.write(str(loss_epoch)+'\n')
-        print '*************'
 
         # Save the model after each epoch
-        print 'Saving model'
+        print('Saving model')
         torch.save({
             'epoch': epoch,
             'state_dict': net.state_dict(),
             'optimizer_state_dict': optimizer.state_dict()
         }, checkpoint_path(epoch))
 
-    print 'Best epoch', best_epoch, 'Best validation Loss', best_val_loss
+    # Record the best epoch and best validation loss overall
+    print('Best epoch {}, Best validation loss {}'.format(best_epoch, best_val_loss))
+    # Log it
     log_file.write(str(best_epoch)+','+str(best_val_loss))
 
     # Close logging files
     log_file.close()
     log_file_curve.close()
+
 
 if __name__ == '__main__':
     main()

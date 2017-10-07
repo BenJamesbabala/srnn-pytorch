@@ -7,7 +7,6 @@ Date: 8th May 2017
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle
-import ipdb
 import argparse
 import seaborn
 
@@ -50,7 +49,7 @@ def plot_attention(true_pos_nodes, pred_pos_nodes, nodes_present, observed_lengt
             ax = fig.gca()
             c = 'r'
             # ipdb.set_trace()
-	    list_of_points = range(true_traj_ped[:, 0].size-1)
+            list_of_points = range(true_traj_ped[:, 0].size-1)
             plt.plot(true_traj_ped[:, 0], true_traj_ped[:, 1], color=c, linestyle='solid', linewidth=1, marker='o', markevery=list_of_points)
             plt.scatter(true_traj_ped[-1, 0], true_traj_ped[-1, 1], color='b', marker='D')
             # plt.plot(pred_traj_ped[:, 0], pred_traj_ped[:, 1], color=c, linestyle='dashed', marker='x', linewidth=1)
@@ -62,20 +61,20 @@ def plot_attention(true_pos_nodes, pred_pos_nodes, nodes_present, observed_lengt
                 weight = attn_w[ind_ped]
 
                 c = np.random.rand(3)
-	        list_of_points = range(true_traj_ped_o[:, 0].size-1)
+                list_of_points = range(true_traj_ped_o[:, 0].size-1)
                 plt.plot(true_traj_ped_o[:, 0], true_traj_ped_o[:, 1], color=c, linestyle='solid', linewidth=1, marker='o', markevery=list_of_points)
                 plt.scatter(true_traj_ped_o[-1, 0], true_traj_ped_o[-1, 1], color='b', marker='D')
                 circle = plt.Circle((true_traj_ped_o[-1, 0], true_traj_ped_o[-1, 1]), weight*0.1, fill=False, color='b', linewidth=2)
-                ax.add_artist(circle)                
+                ax.add_artist(circle)
                 # plt.plot(pred_traj_ped_o[:, 0], pred_traj_ped_o[:, 1], color=c, linestyle='dashed', marker='x', linewidth=2*weight)
 
             # plt.ylim((1, 0))
             # plt.xlim((0, 1))
-	    ax.set_aspect('equal')
+            ax.set_aspect('equal')
             # plt.show()
             plt.savefig(plot_directory+'/'+name+'_'+str(ped)+'.png')
             # plt.close('all')
-	    plt.clf()
+            plt.clf()
 
         break
     plt.close('all')
@@ -90,7 +89,7 @@ def main():
 
     # Parse the parameters
     args = parser.parse_args()
-    
+
     save_directory = 'save/'
     save_directory += str(args.test_dataset) + '/save_attention/'
     plot_directory = 'plot/plot_attention_viz/'+str(args.test_dataset)
@@ -100,7 +99,7 @@ def main():
 
     for i in range(len(results)):
         # For each sequence
-        print i
+        print(i)
         true_pos_nodes = results[i][0]
         pred_pos_nodes = results[i][1]
         nodes_present = results[i][2]

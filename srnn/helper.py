@@ -11,6 +11,11 @@ from torch.autograd import Variable
 
 
 def getVector(pos_list):
+    '''
+    Gets the vector pointing from second element to first element
+    params:
+    pos_list : A list of size two containing two (x, y) positions
+    '''
     pos_i = pos_list[0]
     pos_j = pos_list[1]
 
@@ -18,6 +23,11 @@ def getVector(pos_list):
 
 
 def getMagnitudeAndDirection(*args):
+    '''
+    Gets the magnitude and direction of the vector corresponding to positions
+    params:
+    args: Can be a list of two positions or the two positions themselves (variable-length argument)
+    '''
     if len(args) == 1:
         pos_list = args[0]
         pos_i = pos_list[0]
@@ -52,27 +62,31 @@ def getMagnitudeAndDirection(*args):
 
 
 def getCoef(outputs):
+    '''
+    Extracts the mean, standard deviation and correlation
+    params:
+    outputs : Output of the SRNN model
+    '''
     mux, muy, sx, sy, corr = outputs[:, :, 0], outputs[:, :, 1], outputs[:, :, 2], outputs[:, :, 3], outputs[:, :, 4]
 
+    # Exponential to get a positive value for std dev
     sx = torch.exp(sx)
     sy = torch.exp(sy)
+    # tanh to get a value between [-1, 1] for correlation
     corr = torch.tanh(corr)
+
     return mux, muy, sx, sy, corr
 
 
 def sample_gaussian_2d(mux, muy, sx, sy, corr, nodesPresent):
     '''
-    Parameters
-    ==========
-
+    Returns samples from 2D Gaussian defined by the parameters
+    params:
     mux, muy, sx, sy, corr : a tensor of shape 1 x numNodes
     Contains x-means, y-means, x-stds, y-stds and correlation
-
     nodesPresent : a list of nodeIDs present in the frame
 
-    Returns
-    =======
-
+    returns:
     next_x, next_y : a tensor of shape numNodes
     Contains sampled values from the 2D gaussian
     '''
@@ -92,27 +106,21 @@ def sample_gaussian_2d(mux, muy, sx, sy, corr, nodesPresent):
         next_x[node] = next_values[0][0]
         next_y[node] = next_values[0][1]
 
-    # return torch.from_numpy(next_x).cuda(), torch.from_numpy(next_y).cuda()
     return next_x, next_y
 
 
 def compute_edges(nodes, tstep, edgesPresent):
     '''
-    Parameters
-    ==========
-
+    Computes new edgeFeatures at test time
+    params:
     nodes : A tensor of shape seq_length x numNodes x 2
     Contains the x, y positions of the nodes (might be incomplete for later time steps)
-
     tstep : The time-step at which we need to compute edges
-
     edgesPresent : A list of tuples
     Each tuple has the (nodeID_a, nodeID_b) pair that represents the edge
     (Will have both temporal and spatial edges)
 
-    Returns
-    =======
-
+    returns:
     edges : A tensor of shape numNodes x numNodes x 2
     Contains vectors representing the edges
     '''
@@ -142,6 +150,7 @@ def compute_edges(nodes, tstep, edgesPresent):
 
 def get_mean_error(ret_nodes, nodes, assumedNodesPresent, trueNodesPresent):
     '''
+    Computes average displacement error
     Parameters
     ==========
 
@@ -181,8 +190,10 @@ def get_mean_error(ret_nodes, nodes, assumedNodesPresent, trueNodesPresent):
 
     return torch.mean(error)
 
+
 def get_final_error(ret_nodes, nodes, assumedNodesPresent, trueNodesPresent):
     '''
+    Computes final displacement error
     Parameters
     ==========
 
@@ -210,22 +221,22 @@ def get_final_error(ret_nodes, nodes, assumedNodesPresent, trueNodesPresent):
 
         if nodeID not in trueNodesPresent[tstep]:
             continue
-        
+
         pred_pos = ret_nodes[tstep, nodeID, :]
         true_pos = nodes[tstep, nodeID, :]
-        
+
         error += torch.norm(pred_pos - true_pos, p=2)
         counter += 1
-        
+
     if counter != 0:
         error = error / counter
-            
+
     return error
+
 
 def sample_gaussian_2d_batch(outputs, nodesPresent, edgesPresent, nodes_prev_tstep):
     mux, muy, sx, sy, corr = getCoef_train(outputs)
 
-    
     next_x, next_y = sample_gaussian_2d_train(mux.data, muy.data, sx.data, sy.data, corr.data, nodesPresent)
 
     nodes = torch.zeros(outputs.size()[0], 2)
@@ -263,6 +274,7 @@ def compute_edges_train(nodes, edgesPresent, nodes_prev_tstep):
 
     return edges
 
+
 def getCoef_train(outputs):
     mux, muy, sx, sy, corr = outputs[:, 0], outputs[:, 1], outputs[:, 2], outputs[:, 3], outputs[:, 4]
 
@@ -270,6 +282,7 @@ def getCoef_train(outputs):
     sy = torch.exp(sy)
     corr = torch.tanh(corr)
     return mux, muy, sx, sy, corr
+
 
 def sample_gaussian_2d_train(mux, muy, sx, sy, corr, nodesPresent):
     o_mux, o_muy, o_sx, o_sy, o_corr = mux, muy, sx, sy, corr
@@ -289,5 +302,4 @@ def sample_gaussian_2d_train(mux, muy, sx, sy, corr, nodesPresent):
         next_x[node] = next_values[0][0]
         next_y[node] = next_values[0][1]
 
-    # return torch.from_numpy(next_x).cuda(), torch.from_numpy(next_y).cuda()
     return next_x, next_y
